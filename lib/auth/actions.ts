@@ -81,12 +81,12 @@ export async function loginAdmin(prevState: unknown, formData: FormData): Promis
     });
 
     await setJWTCookie(token);
-  } catch (error) {
-    console.error("Lỗi đăng nhập Super Admin:", error);
+  } catch {
+    console.error("Lỗi đăng nhập Super Admin:");
     return { success: false, error: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." };
   }
 
-  redirect("/dashboard");
+  redirect("/dashboard-admin");
 }
 
 // LOGOUT

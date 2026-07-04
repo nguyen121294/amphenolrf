@@ -20,12 +20,10 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { LogIn, User, Lock, Loader2 } from "lucide-react";
-import Link from "next/link";
 import { login } from "@/lib/auth/actions";
 
 const formSchema = z.object({
@@ -137,16 +135,6 @@ export default function LoginPage() {
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col gap-2">
-        <div className="text-center text-sm">
-          <Link
-            href="/login-admin"
-            className="text-gray-500 hover:text-gray-800 underline text-xs"
-          >
-            Đăng nhập lối đi riêng cho Super Admin
-          </Link>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

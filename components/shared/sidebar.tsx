@@ -152,22 +152,39 @@ export function Sidebar({ onMobileClose, role }: SidebarProps) {
   };
 
   // Filter groups and items based on role
-  const filteredGroups = sidebarGroupsConfig
-    .map((group) => {
-      const items = group.items.filter((item) => {
-        // If rolesAllowed is defined, only show if user role matches
-        if (item.rolesAllowed) {
-          return item.rolesAllowed.includes(role);
-        }
-        return true;
-      });
+  let filteredGroups: SidebarGroup[] = [];
+  if (role === "super_admin") {
+    filteredGroups = [
+      {
+        title: "Quản trị tối cao",
+        items: [
+          {
+            title: "Quản trị hệ thống",
+            href: "/dashboard-admin",
+            icon: LayoutDashboard,
+            badge: null,
+          },
+        ],
+      },
+    ];
+  } else {
+    filteredGroups = sidebarGroupsConfig
+      .map((group) => {
+        const items = group.items.filter((item) => {
+          // If rolesAllowed is defined, only show if user role matches
+          if (item.rolesAllowed) {
+            return item.rolesAllowed.includes(role);
+          }
+          return true;
+        });
 
-      return {
-        ...group,
-        items,
-      };
-    })
-    .filter((group) => group.items.length > 0);
+        return {
+          ...group,
+          items,
+        };
+      })
+      .filter((group) => group.items.length > 0);
+  }
 
   return (
     <div

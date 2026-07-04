@@ -111,13 +111,16 @@ export function Topbar({ username, role }: TopbarProps) {
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="my-2" />
-            <DropdownMenuItem asChild className="p-3 cursor-pointer hover:bg-muted rounded-md transition-colors">
-              <Link href="/dashboard/settings/change-password">
-                <span className="flex items-center gap-2">🔑 Đổi mật khẩu</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-2" />
+            {role !== "super_admin" && (
+              <>
+                <DropdownMenuItem asChild className="p-3 cursor-pointer hover:bg-muted rounded-md transition-colors">
+                  <Link href="/dashboard/settings/change-password">
+                    <span className="flex items-center gap-2">🔑 Đổi mật khẩu</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-2" />
+              </>
+            )}
             <DropdownMenuItem
               onClick={handleLogout}
               className="p-3 cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 rounded-md transition-colors"
