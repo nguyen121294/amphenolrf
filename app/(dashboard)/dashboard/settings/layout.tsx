@@ -58,6 +58,10 @@ const sidebarNavItems = [
 		href: "/dashboard/settings/account",
 	},
 	{
+		title: "Đổi mật khẩu",
+		href: "/dashboard/settings/change-password",
+	},
+	{
 		title: "Appearance",
 		href: "/dashboard/settings/appearance",
 	},

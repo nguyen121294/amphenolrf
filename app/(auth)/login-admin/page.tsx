@@ -24,20 +24,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LogIn, User, Lock, Loader2 } from "lucide-react";
+import { ShieldCheck, User, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { login } from "@/lib/auth/actions";
+import { loginAdmin } from "@/lib/auth/actions";
 
 const formSchema = z.object({
   username: z.string().min(1, {
-    message: "Tên đăng nhập không được để trống.",
+    message: "Tên đăng nhập Super Admin không được để trống.",
   }),
   password: z.string().min(6, {
     message: "Mật khẩu phải chứa ít nhất 6 ký tự.",
   }),
 });
 
-export default function LoginPage() {
+export default function LoginAdminPage() {
   const [loading, setLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -55,13 +55,11 @@ export default function LoginPage() {
       formData.append("username", values.username);
       formData.append("password", values.password);
 
-      const res = await login(null, formData);
+      const res = await loginAdmin(null, formData);
       if (res && !res.success) {
-        toast.error(res.error || "Đăng nhập thất bại.");
+        toast.error(res.error || "Đăng nhập Super Admin thất bại.");
       }
     } catch (err) {
-      // Next.js redirect throws an internal error, which is caught here.
-      // If it is a redirect, we shouldn't show an error toast.
       if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) {
         throw err;
       }
@@ -72,12 +70,14 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border-red-500/20 shadow-xl shadow-red-500/5">
       <CardHeader className="text-center">
-        <LogIn className="mx-auto h-12 w-12 text-gray-400" />
-        <CardTitle className="mt-4 text-2xl">Đăng nhập hệ thống</CardTitle>
+        <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+          <ShieldCheck className="h-6 w-6 text-red-600" />
+        </div>
+        <CardTitle className="mt-4 text-2xl text-red-600 dark:text-red-500">Đăng nhập Super Admin</CardTitle>
         <CardDescription>
-          Nhập tài khoản được cấp để truy cập vào hệ thống
+          Khu vực quản trị tối cao. Vui lòng nhập thông tin bảo mật.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -88,13 +88,13 @@ export default function LoginPage() {
               name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tên đăng nhập</FormLabel>
+                  <FormLabel>Tên đăng nhập tối cao</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        placeholder="Nhập tên đăng nhập"
-                        className="pl-10"
+                        placeholder="Nhập username Super Admin"
+                        className="pl-10 border-red-500/20 focus-visible:ring-red-500"
                         {...field}
                       />
                     </div>
@@ -108,14 +108,14 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mật khẩu</FormLabel>
+                  <FormLabel>Mật khóa</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         type="password"
-                        placeholder="Nhập mật khẩu"
-                        className="pl-10"
+                        placeholder="Nhập password Super Admin"
+                        className="pl-10 border-red-500/20 focus-visible:ring-red-500"
                         {...field}
                       />
                     </div>
@@ -124,14 +124,14 @@ export default function LoginPage() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang xử lý...
+                  Đang kiểm tra...
                 </>
               ) : (
-                "Đăng nhập"
+                "Xác thực tối cao"
               )}
             </Button>
           </form>
@@ -140,10 +140,10 @@ export default function LoginPage() {
       <CardFooter className="flex flex-col gap-2">
         <div className="text-center text-sm">
           <Link
-            href="/login-admin"
+            href="/login"
             className="text-gray-500 hover:text-gray-800 underline text-xs"
           >
-            Đăng nhập lối đi riêng cho Super Admin
+            Quay lại cổng đăng nhập tiêu chuẩn
           </Link>
         </div>
       </CardFooter>
