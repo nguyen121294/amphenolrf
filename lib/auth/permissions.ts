@@ -5,11 +5,16 @@ export type UserRole = "super_admin" | "admin" | "user";
 export const PAGE_PERMISSIONS: Record<string, UserRole[]> = {
   "/app/users": ["super_admin", "admin"],
   "/app/masterdata/item-setting": ["super_admin", "admin", "user"], // All authenticated users can view
+  "/app/masterdata/line-setting": ["super_admin", "admin", "user"],
+  "/app/production/assembly": ["super_admin", "admin", "user"],
+  "/app/production/packing": ["super_admin", "admin", "user"],
+  "/app/production/records": ["super_admin", "admin", "user"],
 };
 
 // Mapping of specific operations/permissions to the roles allowed to execute them.
 export const OPERATION_PERMISSIONS = {
   manage_items: ["super_admin", "admin"], // create, update, delete, import Excel
+  manage_lines: ["super_admin", "admin"],
   manage_users: ["super_admin", "admin"],
 };
 

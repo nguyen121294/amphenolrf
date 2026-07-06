@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  ClipboardList,
+  Package,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessPage, type UserRole } from "@/lib/auth/permissions";
@@ -61,8 +64,38 @@ const sidebarGroupsConfig: SidebarGroup[] = [
         icon: Database,
         badge: null,
       },
+      {
+        title: "Line Setting",
+        href: "/app/masterdata/line-setting",
+        icon: Settings,
+        badge: null,
+      },
     ],
   },
+  {
+    title: "Production",
+    items: [
+      {
+        title: "Assembly Report",
+        href: "/app/production/assembly",
+        icon: ClipboardList,
+        badge: null,
+      },
+      {
+        title: "Packing Report",
+        href: "/app/production/packing",
+        icon: Package,
+        badge: null,
+      },
+      {
+        title: "Production History",
+        href: "/app/production/records",
+        icon: History,
+        badge: null,
+      },
+    ],
+  },
+
   {
     title: "Pages",
     items: [

@@ -23,3 +23,50 @@ export const items = pgTable("items", {
 
 export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
+
+export const lines = pgTable("lines", {
+  id: serial("id").primaryKey(),
+  lineName: varchar("line_name", { length: 50 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Line = typeof lines.$inferSelect;
+export type NewLine = typeof lines.$inferInsert;
+
+export const assemblyReports = pgTable("assembly_reports", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull(),
+  lineId: integer("line_id").notNull().references(() => lines.id),
+  mo: varchar("mo", { length: 100 }).notNull(),
+  itemId: integer("item_id").notNull().references(() => items.id),
+  qtyMo: integer("qty_mo").notNull(),
+  actualQty: integer("actual_qty").notNull(),
+  startTime: varchar("start_time", { length: 5 }).notNull(), // HH:MM
+  endTime: varchar("end_time", { length: 5 }).notNull(),     // HH:MM
+  headCount: integer("head_count").notNull(),
+  leader: varchar("leader", { length: 100 }).notNull(),
+  note: varchar("note", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AssemblyReport = typeof assemblyReports.$inferSelect;
+export type NewAssemblyReport = typeof assemblyReports.$inferInsert;
+
+export const packingReports = pgTable("packing_reports", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull(),
+  itemId: integer("item_id").notNull().references(() => items.id),
+  mo: varchar("mo", { length: 100 }).notNull(),
+  qtyMo: integer("qty_mo").notNull(),
+  packedQty: integer("packed_qty").notNull(),
+  leader: varchar("leader", { length: 100 }).notNull(),
+  note: varchar("note", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PackingReport = typeof packingReports.$inferSelect;
+export type NewPackingReport = typeof packingReports.$inferInsert;
+
