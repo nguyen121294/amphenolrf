@@ -15,6 +15,7 @@ import {
   Package,
   History,
   Key,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessPage, type UserRole } from "@/lib/auth/permissions";
@@ -98,6 +99,12 @@ const sidebarGroupsConfig: SidebarGroup[] = [
         title: "Production History",
         href: "/console/production/records",
         icon: History,
+        badge: null,
+      },
+      {
+        title: "Shipping Plan",
+        href: "/console/production/shipping-plan",
+        icon: FileSpreadsheet,
         badge: null,
       },
     ],
