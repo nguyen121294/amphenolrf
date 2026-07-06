@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, integer, doublePrecision, boolean, unique } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -69,4 +69,23 @@ export const packingReports = pgTable("packing_reports", {
 
 export type PackingReport = typeof packingReports.$inferSelect;
 export type NewPackingReport = typeof packingReports.$inferInsert;
+
+export const userPermissions = pgTable("user_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pagePath: varchar("page_path", { length: 100 }).notNull(),
+  canView: boolean("can_view").default(false).notNull(),
+  canCreate: boolean("can_create").default(false).notNull(),
+  canEdit: boolean("can_edit").default(false).notNull(),
+  canDelete: boolean("can_delete").default(false).notNull(),
+  canImport: boolean("can_import").default(false).notNull(),
+  canExport: boolean("can_export").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  unique("user_page_uniq").on(t.userId, t.pagePath)
+]);
+
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type NewUserPermission = typeof userPermissions.$inferInsert;
 

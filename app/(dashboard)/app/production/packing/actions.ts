@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { packingReports } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth/jwt";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
@@ -24,6 +25,11 @@ export async function savePackingReportAction(data: {
     const session = await getSession();
     if (!session) {
       return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+    }
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/packing", "create");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền gửi báo cáo Packing." };
     }
 
     const { date, itemId, mo, qtyMo, packedQty, note } = data;

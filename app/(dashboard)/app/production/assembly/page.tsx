@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/jwt";
-import { canAccessPage, type UserRole } from "@/lib/auth/permissions";
+import { type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 import { db } from "@/lib/db";
 import { lines, items } from "@/lib/db/schema";
 import { AssemblyClient } from "./assembly-client";
@@ -19,7 +20,9 @@ export default async function AssemblyPage() {
 
   const role = session.role as UserRole;
 
-  if (!canAccessPage(role, "/app/production/assembly")) {
+  // Dynamic permission guard
+  const hasViewAccess = await checkUserPermission(session.userId, role, "/app/production/assembly", "view");
+  if (!hasViewAccess) {
     redirect("/app");
   }
 

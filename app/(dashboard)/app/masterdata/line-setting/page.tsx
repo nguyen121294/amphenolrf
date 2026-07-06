@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/jwt";
-import { canAccessPage, canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 import { LineSettingClient } from "./line-setting-client";
 
 export const metadata = {
@@ -17,13 +18,14 @@ export default async function LineSettingPage() {
 
   const role = session.role as UserRole;
 
-  // Extra safety check in page layer
-  if (!canAccessPage(role, "/app/masterdata/line-setting")) {
+  // Dynamic permission guard
+  const hasViewAccess = await checkUserPermission(session.userId, role, "/app/masterdata/line-setting", "view");
+  if (!hasViewAccess) {
     redirect("/app");
   }
 
-  // Determine if the user is allowed to write/edit lines
-  const canEdit = canPerformOperation(role, "manage_lines");
+  // Determine if the user is allowed to edit lines
+  const canEdit = await checkUserPermission(session.userId, role, "/app/masterdata/line-setting", "edit");
 
   return (
     <div className="flex-1 space-y-6">

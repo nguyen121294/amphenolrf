@@ -6,27 +6,13 @@ import { items, type Item } from "@/lib/db/schema";
 import { eq, like, sql, count, desc } from "drizzle-orm";
 import { read, write, utils } from "xlsx";
 import { getSession } from "@/lib/auth/jwt";
-import { canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 
-// Interface for action responses
 export interface ActionResponse<T = unknown> {
   success: boolean;
   error?: string;
   message?: string;
   data?: T;
-}
-
-// Helpers for checking role-based permission
-async function checkWritePermission(): Promise<ActionResponse<never> | null> {
-  const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
-  }
-  const role = session.role as UserRole;
-  if (!canPerformOperation(role, "manage_items")) {
-    return { success: false, error: "Bạn không có quyền thực hiện chức năng này." };
-  }
-  return null;
 }
 
 /**
@@ -41,6 +27,11 @@ export async function getItemsAction(
     const session = await getSession();
     if (!session) {
       return { success: false, error: "Chưa đăng nhập." };
+    }
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/item-setting", "view");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền xem dữ liệu danh sách sản phẩm." };
     }
 
     const offset = (page - 1) * limit;
@@ -91,8 +82,16 @@ export async function saveItemAction(data: {
   uph: number;
   xaTime: number;
 }): Promise<ActionResponse<Item>> {
-  const permissionError = await checkWritePermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const actionType = data.id ? "edit" : "create";
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/item-setting", actionType);
+  if (!hasAccess) {
+    return { success: false, error: `Bạn không có quyền thực hiện thao tác ${actionType === "edit" ? "chỉnh sửa" : "thêm mới"} sản phẩm.` };
+  }
 
   const { id, itemDescription, uph, xaTime } = data;
 
@@ -168,8 +167,15 @@ export async function saveItemAction(data: {
  * Delete a single item
  */
 export async function deleteItemAction(id: number): Promise<ActionResponse<void>> {
-  const permissionError = await checkWritePermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/item-setting", "delete");
+  if (!hasAccess) {
+    return { success: false, error: "Bạn không có quyền xóa sản phẩm." };
+  }
 
   try {
     await db.delete(items).where(eq(items.id, id));
@@ -185,8 +191,15 @@ export async function deleteItemAction(id: number): Promise<ActionResponse<void>
  * Import items from an uploaded Excel file
  */
 export async function importExcelAction(formData: FormData): Promise<ActionResponse<{ imported: number }>> {
-  const permissionError = await checkWritePermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/item-setting", "import");
+  if (!hasAccess) {
+    return { success: false, error: "Bạn không có quyền nhập dữ liệu từ Excel." };
+  }
 
   const file = formData.get("file") as File;
   if (!file) {
@@ -302,6 +315,11 @@ export async function exportExcelAction(): Promise<ActionResponse<string>> {
     const session = await getSession();
     if (!session) {
       return { success: false, error: "Phiên làm việc đã hết hạn." };
+    }
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/item-setting", "export");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền xuất dữ liệu ra Excel." };
     }
 
     // Fetch all items from DB

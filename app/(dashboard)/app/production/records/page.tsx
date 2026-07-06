@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/jwt";
-import { canAccessPage, canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 import { db } from "@/lib/db";
 import { lines, items } from "@/lib/db/schema";
 import { RecordsClient } from "./records-client";
@@ -19,12 +20,14 @@ export default async function RecordsPage() {
 
   const role = session.role as UserRole;
 
-  if (!canAccessPage(role, "/app/production/records")) {
+  // Dynamic permission guard
+  const hasViewAccess = await checkUserPermission(session.userId, role, "/app/production/records", "view");
+  if (!hasViewAccess) {
     redirect("/app");
   }
 
-  // Determine if the user is allowed to delete records (Admins/Super Admins only)
-  const canDelete = canPerformOperation(role, "manage_items");
+  // Determine if the user is allowed to delete records
+  const canDelete = await checkUserPermission(session.userId, role, "/app/production/records", "delete");
 
   // Fetch items and lines to populate search filter drop-downs
   const itemsList = await db.select().from(items).orderBy(items.itemDescription);

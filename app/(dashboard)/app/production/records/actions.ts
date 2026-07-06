@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { assemblyReports, packingReports, lines, items } from "@/lib/db/schema";
 import { eq, and, gte, lte, like, desc, count } from "drizzle-orm";
 import { getSession } from "@/lib/auth/jwt";
-import { canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
@@ -42,19 +42,6 @@ export interface PackingRecord {
   itemDescription: string | null;
 }
 
-// Helpers for checking admin/delete permission
-async function checkAdminPermission(): Promise<ActionResponse<never> | null> {
-  const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
-  }
-  const role = session.role as UserRole;
-  if (!canPerformOperation(role, "manage_items")) { // Use manage_items permission as proxy for Admin actions
-    return { success: false, error: "Bạn không có quyền thực hiện chức năng này (Yêu cầu quyền Admin)." };
-  }
-  return null;
-}
-
 export async function getAssemblyRecordsAction(filters: {
   lineId?: string;
   itemId?: string;
@@ -67,6 +54,11 @@ export async function getAssemblyRecordsAction(filters: {
   try {
     const session = await getSession();
     if (!session) return { success: false, error: "Chưa đăng nhập." };
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/records", "view");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền xem lịch sử báo cáo." };
+    }
 
     const page = filters.page || 1;
     const limit = filters.limit || 15;
@@ -154,6 +146,11 @@ export async function getPackingRecordsAction(filters: {
     const session = await getSession();
     if (!session) return { success: false, error: "Chưa đăng nhập." };
 
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/records", "view");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền xem lịch sử báo cáo." };
+    }
+
     const page = filters.page || 1;
     const limit = filters.limit || 15;
     const offset = (page - 1) * limit;
@@ -221,8 +218,15 @@ export async function getPackingRecordsAction(filters: {
 }
 
 export async function deleteAssemblyRecordAction(id: number): Promise<ActionResponse<void>> {
-  const permissionError = await checkAdminPermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/records", "delete");
+  if (!hasAccess) {
+    return { success: false, error: "Bạn không có quyền xóa bản ghi lịch sử." };
+  }
 
   try {
     await db.delete(assemblyReports).where(eq(assemblyReports.id, id));
@@ -235,8 +239,15 @@ export async function deleteAssemblyRecordAction(id: number): Promise<ActionResp
 }
 
 export async function deletePackingRecordAction(id: number): Promise<ActionResponse<void>> {
-  const permissionError = await checkAdminPermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/records", "delete");
+  if (!hasAccess) {
+    return { success: false, error: "Bạn không có quyền xóa bản ghi lịch sử." };
+  }
 
   try {
     await db.delete(packingReports).where(eq(packingReports.id, id));

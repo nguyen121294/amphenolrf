@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Package,
   History,
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessPage, type UserRole } from "@/lib/auth/permissions";
@@ -106,6 +107,13 @@ const sidebarGroupsConfig: SidebarGroup[] = [
         badge: null,
         rolesAllowed: ["super_admin", "admin"],
       },
+      {
+        title: "User Permissions",
+        href: "/app/users/permissions",
+        icon: Key,
+        badge: null,
+        rolesAllowed: ["super_admin", "admin"],
+      },
       /*
       {
         title: "Projects",
@@ -180,9 +188,13 @@ const sidebarGroupsConfig: SidebarGroup[] = [
 interface SidebarProps {
   onMobileClose?: () => void;
   role: "super_admin" | "admin" | "user";
+  permissions?: {
+    pagePath: string;
+    canView: boolean;
+  }[];
 }
 
-export function Sidebar({ onMobileClose, role }: SidebarProps) {
+export function Sidebar({ onMobileClose, role, permissions = [] }: SidebarProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -191,6 +203,9 @@ export function Sidebar({ onMobileClose, role }: SidebarProps) {
       onMobileClose();
     }
   };
+
+  // Create lookup map for dynamic permissions
+  const permissionMap = new Map(permissions.map((p) => [p.pagePath, p.canView]));
 
   // Filter groups and items based on role
   let filteredGroups: SidebarGroup[] = [];
@@ -212,7 +227,13 @@ export function Sidebar({ onMobileClose, role }: SidebarProps) {
     filteredGroups = sidebarGroupsConfig
       .map((group) => {
         const items = group.items.filter((item) => {
-          // Check dynamic page permissions first
+          // 1. Check dynamic database permission
+          const hasDbPermission = permissionMap.get(item.href);
+          if (hasDbPermission === false) {
+            return false; // Hide completely if explicitly false
+          }
+
+          // 2. Check static page role-based permission
           if (!canAccessPage(role as UserRole, item.href)) {
             return false;
           }

@@ -5,26 +5,13 @@ import { db } from "@/lib/db";
 import { lines, type Line } from "@/lib/db/schema";
 import { eq, like, count, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth/jwt";
-import { canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
   error?: string;
   message?: string;
   data?: T;
-}
-
-// Helpers for checking role-based permission
-async function checkWritePermission(): Promise<ActionResponse<never> | null> {
-  const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
-  }
-  const role = session.role as UserRole;
-  if (!canPerformOperation(role, "manage_lines")) {
-    return { success: false, error: "Bạn không có quyền thực hiện chức năng này." };
-  }
-  return null;
 }
 
 /**
@@ -39,6 +26,11 @@ export async function getLinesAction(
     const session = await getSession();
     if (!session) {
       return { success: false, error: "Chưa đăng nhập." };
+    }
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/line-setting", "view");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền xem dữ liệu danh sách dây chuyền." };
     }
 
     const offset = (page - 1) * limit;
@@ -87,8 +79,16 @@ export async function saveLineAction(data: {
   id?: number;
   lineName: string;
 }): Promise<ActionResponse<Line>> {
-  const permissionError = await checkWritePermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const actionType = data.id ? "edit" : "create";
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/line-setting", actionType);
+  if (!hasAccess) {
+    return { success: false, error: `Bạn không có quyền thực hiện thao tác ${actionType === "edit" ? "chỉnh sửa" : "thêm mới"} dây chuyền.` };
+  }
 
   const { id, lineName } = data;
 
@@ -154,8 +154,15 @@ export async function saveLineAction(data: {
  * Delete a single line
  */
 export async function deleteLineAction(id: number): Promise<ActionResponse<void>> {
-  const permissionError = await checkWritePermission();
-  if (permissionError) return permissionError;
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+  }
+
+  const hasAccess = await checkUserPermission(session.userId, session.role, "/app/masterdata/line-setting", "delete");
+  if (!hasAccess) {
+    return { success: false, error: "Bạn không có quyền xóa dây chuyền." };
+  }
 
   try {
     await db.delete(lines).where(eq(lines.id, id));

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { assemblyReports } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth/jwt";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
@@ -28,6 +29,11 @@ export async function saveAssemblyReportAction(data: {
     const session = await getSession();
     if (!session) {
       return { success: false, error: "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." };
+    }
+
+    const hasAccess = await checkUserPermission(session.userId, session.role, "/app/production/assembly", "create");
+    if (!hasAccess) {
+      return { success: false, error: "Bạn không có quyền gửi báo cáo Assembly." };
     }
 
     const { date, lineId, mo, itemId, qtyMo, actualQty, startTime, endTime, headCount, note } = data;

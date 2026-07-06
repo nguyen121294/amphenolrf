@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/jwt";
-import { canAccessPage, canPerformOperation, type UserRole } from "@/lib/auth/permissions";
+import { type UserRole } from "@/lib/auth/permissions";
+import { checkUserPermission } from "@/lib/auth/dynamic-permissions";
 import { ItemSettingClient } from "./item-setting-client";
 
 export const metadata = {
@@ -17,13 +18,14 @@ export default async function ItemSettingPage() {
 
   const role = session.role as UserRole;
 
-  // Extra safety check in page layer
-  if (!canAccessPage(role, "/app/masterdata/item-setting")) {
+  // Dynamic permission guard
+  const hasViewAccess = await checkUserPermission(session.userId, role, "/app/masterdata/item-setting", "view");
+  if (!hasViewAccess) {
     redirect("/app");
   }
 
-  // Determine if the user is allowed to write/edit items
-  const canEdit = canPerformOperation(role, "manage_items");
+  // Determine if the user is allowed to edit items (or create/delete, we pass edit as represents write permission)
+  const canEdit = await checkUserPermission(session.userId, role, "/app/masterdata/item-setting", "edit");
 
   return (
     <div className="flex-1 space-y-6">
