@@ -6,6 +6,7 @@ export const PAGE_PERMISSIONS: Record<string, UserRole[]> = {
   "/app/users": ["super_admin", "admin"],
   "/app/masterdata/item-setting": ["super_admin", "admin", "user"], // All authenticated users can view
   "/app/masterdata/line-setting": ["super_admin", "admin", "user"],
+  "/app/production/dashboard": ["super_admin", "admin", "user"],
   "/app/production/assembly": ["super_admin", "admin", "user"],
   "/app/production/packing": ["super_admin", "admin", "user"],
   "/app/production/records": ["super_admin", "admin", "user"],

@@ -77,6 +77,12 @@ const sidebarGroupsConfig: SidebarGroup[] = [
     title: "Production",
     items: [
       {
+        title: "Dashboard Production",
+        href: "/app/production/dashboard",
+        icon: LayoutDashboard,
+        badge: null,
+      },
+      {
         title: "Assembly Report",
         href: "/app/production/assembly",
         icon: ClipboardList,

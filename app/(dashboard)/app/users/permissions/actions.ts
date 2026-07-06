@@ -26,6 +26,7 @@ export interface PermissionUpdate {
 
 // Configurable pages in the system
 const CONFIGURABLE_PAGES = [
+  { path: "/app/production/dashboard", name: "Dashboard Production" },
   { path: "/app/production/assembly", name: "Báo cáo Assembly" },
   { path: "/app/production/packing", name: "Báo cáo Packing" },
   { path: "/app/production/records", name: "Lịch sử báo cáo" },

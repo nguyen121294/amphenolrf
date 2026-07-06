@@ -39,10 +39,22 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
   const [itemId, setItemId] = useState("");
   const [qtyMo, setQtyMo] = useState("");
   const [actualQty, setActualQty] = useState("");
+  const [dailyPlanQty, setDailyPlanQty] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [headCount, setHeadCount] = useState("");
   const [note, setNote] = useState("");
+
+  // Loss Time fields
+  const [trainingTime, setTrainingTime] = useState("");
+  const [stoppageTime, setStoppageTime] = useState("");
+  const [coTime, setCoTime] = useState("");
+  const [materialsTime, setMaterialsTime] = useState("");
+  const [qualityTime, setQualityTime] = useState("");
+  const [sopTime, setSopTime] = useState("");
+  const [faiTime, setFaiTime] = useState("");
+  const [fqcTime, setFqcTime] = useState("");
+  const [otherLossTime, setOtherLossTime] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +67,7 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
     
     const parsedQtyMo = parseInt(qtyMo, 10);
     const parsedActualQty = parseInt(actualQty, 10);
+    const parsedDailyPlanQty = parseInt(dailyPlanQty, 10) || 0;
     const parsedHeadCount = parseInt(headCount, 10);
 
     if (isNaN(parsedQtyMo) || parsedQtyMo <= 0) {
@@ -63,6 +76,9 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
     if (isNaN(parsedActualQty) || parsedActualQty < 0) {
       return toast.error("Số lượng thực tế không được phép âm.");
     }
+    if (parsedDailyPlanQty < 0) {
+      return toast.error("Sản lượng kế hoạch ngày không được phép âm.");
+    }
     if (!startTime) return toast.error("Vui lòng nhập Giờ bắt đầu.");
     if (!endTime) return toast.error("Vui lòng nhập Giờ kết thúc.");
     if (startTime >= endTime) {
@@ -70,6 +86,30 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
     }
     if (isNaN(parsedHeadCount) || parsedHeadCount <= 0) {
       return toast.error("Số người phải là số nguyên lớn hơn 0.");
+    }
+
+    const parsedTraining = parseFloat(trainingTime) || 0;
+    const parsedStoppage = parseFloat(stoppageTime) || 0;
+    const parsedCo = parseFloat(coTime) || 0;
+    const parsedMaterials = parseFloat(materialsTime) || 0;
+    const parsedQuality = parseFloat(qualityTime) || 0;
+    const parsedSop = parseFloat(sopTime) || 0;
+    const parsedFai = parseFloat(faiTime) || 0;
+    const parsedFqc = parseFloat(fqcTime) || 0;
+    const parsedOther = parseFloat(otherLossTime) || 0;
+
+    if (
+      parsedTraining < 0 ||
+      parsedStoppage < 0 ||
+      parsedCo < 0 ||
+      parsedMaterials < 0 ||
+      parsedQuality < 0 ||
+      parsedSop < 0 ||
+      parsedFai < 0 ||
+      parsedFqc < 0 ||
+      parsedOther < 0
+    ) {
+      return toast.error("Thời gian hao hụt không được phép âm.");
     }
 
     try {
@@ -81,10 +121,20 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
         itemId: parseInt(itemId, 10),
         qtyMo: parsedQtyMo,
         actualQty: parsedActualQty,
+        dailyPlanQty: parsedDailyPlanQty,
         startTime,
         endTime,
         headCount: parsedHeadCount,
         note: note.trim() || undefined,
+        trainingTime: parsedTraining,
+        stoppageTime: parsedStoppage,
+        coTime: parsedCo,
+        materialsTime: parsedMaterials,
+        qualityTime: parsedQuality,
+        sopTime: parsedSop,
+        faiTime: parsedFai,
+        fqcTime: parsedFqc,
+        otherLossTime: parsedOther,
       });
 
       if (res.success) {
@@ -94,10 +144,20 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
         setItemId("");
         setQtyMo("");
         setActualQty("");
+        setDailyPlanQty("");
         setStartTime("");
         setEndTime("");
         setHeadCount("");
         setNote("");
+        setTrainingTime("");
+        setStoppageTime("");
+        setCoTime("");
+        setMaterialsTime("");
+        setQualityTime("");
+        setSopTime("");
+        setFaiTime("");
+        setFqcTime("");
+        setOtherLossTime("");
       } else {
         toast.error(res.error || "Có lỗi xảy ra.");
       }
@@ -114,10 +174,20 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
       setItemId("");
       setQtyMo("");
       setActualQty("");
+      setDailyPlanQty("");
       setStartTime("");
       setEndTime("");
       setHeadCount("");
       setNote("");
+      setTrainingTime("");
+      setStoppageTime("");
+      setCoTime("");
+      setMaterialsTime("");
+      setQualityTime("");
+      setSopTime("");
+      setFaiTime("");
+      setFqcTime("");
+      setOtherLossTime("");
     }
   };
 
@@ -205,7 +275,7 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
             <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               2. Chi tiết sản phẩm & Sản lượng
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Item */}
               <div className="space-y-1.5 md:col-span-1">
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
@@ -231,6 +301,22 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
                   placeholder="0"
                   value={qtyMo}
                   onChange={(e) => setQtyMo(e.target.value)}
+                  className="h-10 text-sm"
+                  required
+                />
+              </div>
+
+              {/* KH Ngày */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Kế hoạch ngày <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={dailyPlanQty}
+                  onChange={(e) => setDailyPlanQty(e.target.value)}
                   className="h-10 text-sm"
                   required
                 />
@@ -338,6 +424,149 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="min-h-10 h-10 resize-y text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Hao hụt thời gian (Loss Time - Giờ) */}
+          <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/60">
+            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              5. Hao hụt thời gian (Loss Time - Giờ)
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Training Time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={trainingTime}
+                  onChange={(e) => setTrainingTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Line Stoppage Hours
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={stoppageTime}
+                  onChange={(e) => setStoppageTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  C.O Time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={coTime}
+                  onChange={(e) => setCoTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Materials fulfillment
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={materialsTime}
+                  onChange={(e) => setMaterialsTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Quality issue
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={qualityTime}
+                  onChange={(e) => setQualityTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  SOP Time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={sopTime}
+                  onChange={(e) => setSopTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  FAI Time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={faiTime}
+                  onChange={(e) => setFaiTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  FQC Time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={fqcTime}
+                  onChange={(e) => setFqcTime(e.target.value)}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Other loss time
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.0"
+                  value={otherLossTime}
+                  onChange={(e) => setOtherLossTime(e.target.value)}
+                  className="h-10 text-sm"
                 />
               </div>
             </div>

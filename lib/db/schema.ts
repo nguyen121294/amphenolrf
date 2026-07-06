@@ -47,6 +47,16 @@ export const assemblyReports = pgTable("assembly_reports", {
   headCount: integer("head_count").notNull(),
   leader: varchar("leader", { length: 100 }).notNull(),
   note: varchar("note", { length: 255 }),
+  dailyPlanQty: integer("daily_plan_qty").default(0).notNull(),
+  trainingTime: doublePrecision("training_time").default(0).notNull(),
+  stoppageTime: doublePrecision("stoppage_time").default(0).notNull(),
+  coTime: doublePrecision("co_time").default(0).notNull(),
+  materialsTime: doublePrecision("materials_time").default(0).notNull(),
+  qualityTime: doublePrecision("quality_time").default(0).notNull(),
+  sopTime: doublePrecision("sop_time").default(0).notNull(),
+  faiTime: doublePrecision("fai_time").default(0).notNull(),
+  fqcTime: doublePrecision("fqc_time").default(0).notNull(),
+  otherLossTime: doublePrecision("other_loss_time").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -69,6 +79,19 @@ export const packingReports = pgTable("packing_reports", {
 
 export type PackingReport = typeof packingReports.$inferSelect;
 export type NewPackingReport = typeof packingReports.$inferInsert;
+
+export const dailyProductionSummaries = pgTable("daily_production_summaries", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull().unique(),
+  supervisor: varchar("supervisor", { length: 100 }).notNull(),
+  absentees: integer("absentees").notNull().default(0),
+  overtime: doublePrecision("overtime").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type DailyProductionSummary = typeof dailyProductionSummaries.$inferSelect;
+export type NewDailyProductionSummary = typeof dailyProductionSummaries.$inferInsert;
 
 export const userPermissions = pgTable("user_permissions", {
   id: serial("id").primaryKey(),

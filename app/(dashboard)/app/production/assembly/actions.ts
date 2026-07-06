@@ -20,10 +20,20 @@ export async function saveAssemblyReportAction(data: {
   itemId: number;
   qtyMo: number;
   actualQty: number;
+  dailyPlanQty: number;
   startTime: string; // HH:MM
   endTime: string; // HH:MM
   headCount: number;
   note?: string;
+  trainingTime?: number;
+  stoppageTime?: number;
+  coTime?: number;
+  materialsTime?: number;
+  qualityTime?: number;
+  sopTime?: number;
+  faiTime?: number;
+  fqcTime?: number;
+  otherLossTime?: number;
 }): Promise<ActionResponse> {
   try {
     const session = await getSession();
@@ -36,7 +46,28 @@ export async function saveAssemblyReportAction(data: {
       return { success: false, error: "Bạn không có quyền gửi báo cáo Assembly." };
     }
 
-    const { date, lineId, mo, itemId, qtyMo, actualQty, startTime, endTime, headCount, note } = data;
+    const {
+      date,
+      lineId,
+      mo,
+      itemId,
+      qtyMo,
+      actualQty,
+      dailyPlanQty,
+      startTime,
+      endTime,
+      headCount,
+      note,
+      trainingTime,
+      stoppageTime,
+      coTime,
+      materialsTime,
+      qualityTime,
+      sopTime,
+      faiTime,
+      fqcTime,
+      otherLossTime,
+    } = data;
 
     // Field validation
     if (!date) return { success: false, error: "Vui lòng chọn ngày." };
@@ -45,6 +76,7 @@ export async function saveAssemblyReportAction(data: {
     if (!itemId) return { success: false, error: "Vui lòng chọn Item." };
     if (qtyMo <= 0) return { success: false, error: "Số lượng MO phải lớn hơn 0." };
     if (actualQty < 0) return { success: false, error: "Số lượng thực tế không được âm." };
+    if (dailyPlanQty < 0) return { success: false, error: "Sản lượng kế hoạch không được âm." };
     if (!startTime) return { success: false, error: "Vui lòng chọn giờ bắt đầu." };
     if (!endTime) return { success: false, error: "Vui lòng chọn giờ kết thúc." };
     if (headCount <= 0) return { success: false, error: "Số người phải lớn hơn 0." };
@@ -64,11 +96,21 @@ export async function saveAssemblyReportAction(data: {
         itemId,
         qtyMo,
         actualQty,
+        dailyPlanQty,
         startTime,
         endTime,
         headCount,
         leader: session.username, // Auto set from logged-in username
         note: note ? note.trim() : null,
+        trainingTime: trainingTime || 0,
+        stoppageTime: stoppageTime || 0,
+        coTime: coTime || 0,
+        materialsTime: materialsTime || 0,
+        qualityTime: qualityTime || 0,
+        sopTime: sopTime || 0,
+        faiTime: faiTime || 0,
+        fqcTime: fqcTime || 0,
+        otherLossTime: otherLossTime || 0,
       })
       .returning();
 
