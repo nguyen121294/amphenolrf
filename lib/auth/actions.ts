@@ -50,7 +50,7 @@ export async function login(prevState: unknown, formData: FormData): Promise<Act
   }
 
   // Redirect after setting cookie (must be outside try-catch block for Next.js redirect behavior)
-  redirect("/dashboard");
+  redirect("/app");
 }
 
 // LOGIN FOR SUPER ADMIN

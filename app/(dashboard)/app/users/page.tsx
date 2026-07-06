@@ -19,7 +19,7 @@ export default async function UsersPage() {
 
   // Standard user is blocked
   if (session.role === "user") {
-    redirect("/dashboard");
+    redirect("/app");
   }
 
   // Admin manager (quản đốc) can ONLY query and see users with 'user' role

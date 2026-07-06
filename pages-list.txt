@@ -1,0 +1,40 @@
+# Hướng dẫn: Đánh dấu [HIDE] trước trang bạn muốn ẩn (ví dụ: [HIDE] /app/calendar)
+# Hoặc giữ nguyên [KEEP] để giữ trang đó.
+# Sau khi sửa xong file này, hãy lưu lại và báo cho tôi biết.
+
+[KEEP] / (Trang chủ - Redirect gốc)
+[KEEP] /login (Đăng nhập nhân viên)
+[KEEP] /login-admin (Đăng nhập admin)
+[KEEP] /setup-2fa (Cài đặt 2FA)
+[KEEP] /verify-email (Xác thực Email)
+[KEEP] /dashboard-admin (Giao diện Quản trị viên Super Admin)
+
+--- PHÂN HỆ NGƯỜI DÙNG (/app/*) ---
+[KEEP] /app (Trang chủ ứng dụng / Dashboard Home)
+[KEEP] /app/analytics (Thống kê / Analytics)
+[HIDE] /app/auth (Demo các trang Auth)
+[HIDE] /app/calendar (Lịch / Calendar)
+[HIDE] /app/database (Quản lý Database)
+[HIDE] /app/documents (Tài liệu / Documents)
+[HIDE] /app/errors (Demo các trang Error)
+[HIDE] /app/help (Trợ giúp / Help Support)
+[HIDE] /app/messages (Tin nhắn / Messages)
+[HIDE] /app/projects (Dự án / Projects)
+[HIDE] /app/security (Bảo mật / Security)
+[KEEP] /app/users (Quản lý người dùng)
+[KEEP] /app/masterdata/item-setting (Thiết lập Master Data / Item Settings)
+
+--- HỆ THỐNG CÀI ĐẶT (/app/settings/*) ---
+[KEEP] /app/settings (Hồ sơ cá nhân / Profile)
+[KEEP] /app/settings/account (Cài đặt tài khoản)
+[HIDE] /app/settings/api-keys (Quản lý API Keys)
+[KEEP] /app/settings/appearance (Giao diện hiển thị)
+[KEEP] /app/settings/change-password (Đổi mật khẩu)
+[KEEP] /app/settings/display (Cài đặt Display)
+[HIDE] /app/settings/notifications (Cài đặt thông báo)
+
+--- CÁC TRANG LỖI HỆ THỐNG (/error/*) ---
+[KEEP] /error/401 (Lỗi Unauthorized)
+[KEEP] /error/403 (Lỗi Forbidden)
+[KEEP] /error/500 (Lỗi Server Error)
+[KEEP] /error/maintenance (Bảo trì hệ thống)

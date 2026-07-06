@@ -35,7 +35,7 @@ export default function ForbiddenPage() {
 					</div>
 					<div className="flex flex-col gap-3">
 						<Button asChild className="bg-red-600 hover:bg-red-700 text-white">
-							<Link href="/dashboard">
+							<Link href="/app">
 								<Home className="mr-2 h-4 w-4" />
 								Go to Dashboard
 							</Link>
@@ -56,7 +56,7 @@ export default function ForbiddenPage() {
 							asChild
 							className="text-red-600 hover:text-red-800 hover:bg-red-50"
 						>
-							<Link href="/dashboard/settings">
+							<Link href="/app/settings">
 								<UserCheck className="mr-2 h-4 w-4" />
 								Check Permissions
 							</Link>

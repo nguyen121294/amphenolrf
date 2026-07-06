@@ -5,7 +5,7 @@ export default async function Index() {
   const session = await getSession();
   
   if (session) {
-    redirect("/dashboard");
+    redirect("/app");
   } else {
     redirect("/login");
   }

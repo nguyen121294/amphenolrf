@@ -15,7 +15,7 @@ export default async function DashboardAdminLayout({
   }
 
   if (session.role !== "super_admin") {
-    redirect("/dashboard");
+    redirect("/app");
   }
 
   return (

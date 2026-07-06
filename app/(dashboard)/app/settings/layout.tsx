@@ -51,32 +51,36 @@ import { Separator } from "@/components/ui/separator";
 const sidebarNavItems = [
 	{
 		title: "Profile",
-		href: "/dashboard/settings",
+		href: "/app/settings",
 	},
 	{
 		title: "Account",
-		href: "/dashboard/settings/account",
+		href: "/app/settings/account",
 	},
 	{
 		title: "Đổi mật khẩu",
-		href: "/dashboard/settings/change-password",
+		href: "/app/settings/change-password",
 	},
 	{
 		title: "Appearance",
-		href: "/dashboard/settings/appearance",
+		href: "/app/settings/appearance",
 	},
+	/*
 	{
 		title: "Notifications",
-		href: "/dashboard/settings/notifications",
+		href: "/app/settings/notifications",
 	},
+	*/
 	{
 		title: "Display",
-		href: "/dashboard/settings/display",
+		href: "/app/settings/display",
 	},
+	/*
 	{
 		title: "API Keys",
-		href: "/dashboard/settings/api-keys",
+		href: "/app/settings/api-keys",
 	},
+	*/
 ];
 
 interface SettingsLayoutProps {
@@ -93,8 +97,8 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
 				</p>
 			</div>
 			<Separator />
-			<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
-				<aside className="-mx-4 lg:w-1/5">
+			<div className="flex flex-col gap-8 lg:flex-row lg:gap-16">
+				<aside className="-mx-4 lg:mx-0 lg:w-44 lg:shrink-0">
 					<SettingsSidebarNav items={sidebarNavItems} />
 				</aside>
 				<div className="flex-1 lg:max-w-2xl">{children}</div>

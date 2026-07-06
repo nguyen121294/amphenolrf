@@ -8,19 +8,12 @@ import {
   Settings,
   Users,
   BarChart3,
-  FolderKanban,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Calendar,
   Database,
-  MessageSquare,
-  Shield,
-  HelpCircle,
-  LogIn,
-  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { canAccessPage, type UserRole } from "@/lib/auth/permissions";
 
 interface SidebarItem {
   title: string;
@@ -41,20 +34,31 @@ const sidebarGroupsConfig: SidebarGroup[] = [
     items: [
       {
         title: "Dashboard",
-        href: "/dashboard",
+        href: "/app",
         icon: LayoutDashboard,
         badge: null,
       },
       {
         title: "Analytics",
-        href: "/dashboard/analytics",
+        href: "/app/analytics",
         icon: BarChart3,
         badge: "New",
       },
       {
         title: "Settings",
-        href: "/dashboard/settings",
+        href: "/app/settings",
         icon: Settings,
+        badge: null,
+      },
+    ],
+  },
+  {
+    title: "Master Data",
+    items: [
+      {
+        title: "Item Setting",
+        href: "/app/masterdata/item-setting",
+        icon: Database,
         badge: null,
       },
     ],
@@ -64,76 +68,80 @@ const sidebarGroupsConfig: SidebarGroup[] = [
     items: [
       {
         title: "Users",
-        href: "/dashboard/users",
+        href: "/app/users",
         icon: Users,
         badge: null,
         rolesAllowed: ["super_admin", "admin"],
       },
+      /*
       {
         title: "Projects",
-        href: "/dashboard/projects",
+        href: "/app/projects",
         icon: FolderKanban,
         badge: null,
       },
       {
         title: "Documents",
-        href: "/dashboard/documents",
+        href: "/app/documents",
         icon: FileText,
         badge: null,
       },
       {
         title: "Calendar",
-        href: "/dashboard/calendar",
+        href: "/app/calendar",
         icon: Calendar,
         badge: null,
       },
       {
         title: "Auth Pages",
-        href: "/dashboard/auth",
+        href: "/app/auth",
         icon: LogIn,
         badge: null,
         rolesAllowed: ["super_admin"],
       },
       {
         title: "Error Pages",
-        href: "/dashboard/errors",
+        href: "/app/errors",
         icon: AlertCircle,
         badge: null,
         rolesAllowed: ["super_admin"],
       },
+      */
     ],
   },
+  /*
   {
     title: "Others",
     items: [
       {
         title: "Messages",
-        href: "/dashboard/messages",
+        href: "/app/messages",
         icon: MessageSquare,
         badge: null,
       },
       {
         title: "Database",
-        href: "/dashboard/database",
+        href: "/app/database",
         icon: Database,
         badge: null,
         rolesAllowed: ["super_admin"],
       },
       {
         title: "Security",
-        href: "/dashboard/security",
+        href: "/app/security",
         icon: Shield,
         badge: null,
         rolesAllowed: ["super_admin"],
       },
       {
         title: "Help",
-        href: "/dashboard/help",
+        href: "/app/help",
         icon: HelpCircle,
         badge: null,
       },
     ],
   },
+  */
 ];
 
 interface SidebarProps {
@@ -171,6 +179,10 @@ export function Sidebar({ onMobileClose, role }: SidebarProps) {
     filteredGroups = sidebarGroupsConfig
       .map((group) => {
         const items = group.items.filter((item) => {
+          // Check dynamic page permissions first
+          if (!canAccessPage(role as UserRole, item.href)) {
+            return false;
+          }
           // If rolesAllowed is defined, only show if user role matches
           if (item.rolesAllowed) {
             return item.rolesAllowed.includes(role);
@@ -196,7 +208,7 @@ export function Sidebar({ onMobileClose, role }: SidebarProps) {
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6 justify-between">
         {!isCollapsed && (
-          <Link href="/dashboard" className="flex items-center gap-3 group">
+          <Link href="/app" className="flex items-center gap-3 group">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
             </div>

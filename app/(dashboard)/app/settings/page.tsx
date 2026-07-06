@@ -153,7 +153,7 @@ export default function SettingsPage() {
 								<FormDescription>
 									You can manage verified email addresses in your{" "}
 									<a
-										href="/dashboard/settings/email"
+										href="/app/settings/email"
 										className="underline underline-offset-4"
 									>
 										email settings

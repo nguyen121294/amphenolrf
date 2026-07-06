@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth/jwt";
 import { redirect } from "next/navigation";
-import { UsersTableClient } from "@/app/(dashboard)/dashboard/users/users-table-client";
+import { UsersTableClient } from "@/app/(dashboard)/app/users/users-table-client";
 
 export default async function DashboardAdminPage() {
   const session = await getSession();

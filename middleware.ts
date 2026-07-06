@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyJWT } from "./lib/auth/jwt";
+import { canAccessPage, type UserRole } from "./lib/auth/permissions";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,7 +15,7 @@ export async function middleware(request: NextRequest) {
       if (session.role === "super_admin") {
         return NextResponse.redirect(new URL("/dashboard-admin", request.url));
       } else {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/app", request.url));
       }
     } else {
       return NextResponse.redirect(new URL("/login", request.url));
@@ -27,7 +28,7 @@ export async function middleware(request: NextRequest) {
       if (session.role === "super_admin") {
         return NextResponse.redirect(new URL("/dashboard-admin", request.url));
       } else {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/app", request.url));
       }
     }
     return NextResponse.next();
@@ -39,13 +40,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
     if (session.role !== "super_admin") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/app", request.url));
     }
     return NextResponse.next();
   }
 
-  // 4. Staff / Admin Protected Routes (/dashboard/*)
-  if (pathname.startsWith("/dashboard")) {
+  // 4. Staff / Admin Protected Routes (/app/*)
+  if (pathname.startsWith("/app")) {
     if (!session) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
@@ -53,11 +54,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard-admin", request.url));
     }
 
-    // Role-based access: standard 'user' cannot access '/dashboard/users'
-    if (pathname.startsWith("/dashboard/users")) {
-      if (session.role === "user") {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-      }
+    // Dynamic role-based page permission checks
+    if (!canAccessPage(session.role as UserRole, pathname)) {
+      return NextResponse.redirect(new URL("/app", request.url));
     }
   }
 
@@ -70,7 +69,7 @@ export const config = {
     "/",
     "/login",
     "/login-admin",
-    "/dashboard/:path*",
+    "/app/:path*",
     "/dashboard-admin/:path*",
   ],
 };

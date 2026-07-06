@@ -114,7 +114,7 @@ export function Topbar({ username, role }: TopbarProps) {
             {role !== "super_admin" && (
               <>
                 <DropdownMenuItem asChild className="p-3 cursor-pointer hover:bg-muted rounded-md transition-colors">
-                  <Link href="/dashboard/settings/change-password">
+                  <Link href="/app/settings/change-password">
                     <span className="flex items-center gap-2">🔑 Đổi mật khẩu</span>
                   </Link>
                 </DropdownMenuItem>

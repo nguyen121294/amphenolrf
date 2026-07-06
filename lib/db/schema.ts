@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -11,3 +11,15 @@ export const users = pgTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export const items = pgTable("items", {
+  id: serial("id").primaryKey(),
+  itemDescription: varchar("item_description", { length: 255 }).notNull().unique(),
+  uph: integer("uph").notNull(),
+  xaTime: doublePrecision("xa_time").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Item = typeof items.$inferSelect;
+export type NewItem = typeof items.$inferInsert;

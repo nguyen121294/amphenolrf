@@ -45,7 +45,7 @@ export default function ErrorPage({
 									Refresh Page
 								</Button>
 								<Button variant="outline" asChild>
-									<Link href="/dashboard">
+									<Link href="/app">
 										<Home className="mr-2 h-4 w-4" />
 										Go Home
 									</Link>

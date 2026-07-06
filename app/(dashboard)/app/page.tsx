@@ -156,7 +156,7 @@ export default async function DashboardPage() {
             <div className="grid grid-cols-2 gap-4">
               {session.role !== "user" ? (
                 <a
-                  href="/dashboard/users"
+                  href="/app/users"
                   className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg border hover:bg-muted transition-colors text-center"
                 >
                   <Users className="h-6 w-6" />
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
                 </div>
               )}
               <a
-                href="/dashboard/settings/change-password"
+                href="/app/settings/change-password"
                 className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg border hover:bg-muted transition-colors text-center"
               >
                 <Settings className="h-6 w-6" />

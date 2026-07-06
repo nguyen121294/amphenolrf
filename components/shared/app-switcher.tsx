@@ -26,7 +26,7 @@ const apps = [
 	{
 		name: "Dashboard",
 		icon: Grid3X3,
-		href: "/dashboard",
+		href: "/app",
 		description: "Main dashboard overview",
 	},
 	{
