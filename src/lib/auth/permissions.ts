@@ -11,6 +11,7 @@ export const PAGE_PERMISSIONS: Record<string, UserRole[]> = {
   "/console/production/packing": ["super_admin", "admin", "user"],
   "/console/production/records": ["super_admin", "admin", "user"],
   "/console/production/shipping-plan": ["super_admin", "admin", "user"],
+  "/console/production/scheduling": ["super_admin", "admin", "user"],
 };
 
 // Mapping of specific operations/permissions to the roles allowed to execute them.

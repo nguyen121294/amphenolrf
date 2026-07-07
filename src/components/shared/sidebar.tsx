@@ -107,6 +107,12 @@ const sidebarGroupsConfig: SidebarGroup[] = [
         icon: FileSpreadsheet,
         badge: null,
       },
+      {
+        title: "Production Scheduling",
+        href: "/console/production/scheduling",
+        icon: FileSpreadsheet,
+        badge: null,
+      },
     ],
   },
 
