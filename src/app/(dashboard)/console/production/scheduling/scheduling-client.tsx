@@ -132,7 +132,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
   // Configuration states
   const [headerRow, setHeaderRow] = useState<number>(2);
   const [dataRow, setDataRow] = useState<number>(3);
-  const [lotStep, setLotStep] = useState<number>(500);
+  const [lotStep, setLotStep] = useState<number>(0);
   const [qtyEfficiency, setQtyEfficiency] = useState<number>(0.76);
   const [fixLatheScore, setFixLatheScore] = useState<boolean>(true);
   const [writeSummaryToRow1, setWriteSummaryToRow1] = useState<boolean>(false);
@@ -141,9 +141,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
   const [originalWorkbook, setOriginalWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [lineCapacities, setLineCapacities] = useState<Record<string, number[]>>(defaultLineCapacities);
   const [results, setResults] = useState<ItemData[]>([]);
-  const [missingUphItems, setMissingUphItems] = useState<string[]>([]);
-  const [manualUphMap, setManualUphMap] = useState<Record<string, number>>({});
-  const [bulkUph, setBulkUph] = useState<string>("");
+  const [defaultUph, setDefaultUph] = useState<number>(300);
   
   // Navigation / Filter states
   const [activeTab, setActiveTab] = useState<"preview" | "summary" | "calendar" | "rules">("preview");
@@ -226,26 +224,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
     return value !== "no";
   };
 
-  const handleUphChange = (item: string, val: number) => {
-    setManualUphMap((prev) => ({
-      ...prev,
-      [item]: val
-    }));
-  };
 
-  const handleApplyBulkUph = () => {
-    const uphNum = parseInt(bulkUph) || 0;
-    if (uphNum <= 0) {
-      toast.warning("Vui lòng nhập giá trị UPH hợp lệ.");
-      return;
-    }
-    const newMap = { ...manualUphMap };
-    missingUphItems.forEach((item) => {
-      newMap[item] = uphNum;
-    });
-    setManualUphMap(newMap);
-    toast.success(`Đã áp dụng UPH = ${uphNum} cho tất cả ${missingUphItems.length} mặt hàng.`);
-  };
 
   // Drag & drop logic for MO file
   const handleDrag = (e: React.DragEvent) => {
@@ -304,7 +283,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
   const processMoFile = async (file: File) => {
     setLoading(true);
     setResults([]);
-    setMissingUphItems([]);
+
     try {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array", cellDates: true });
@@ -318,9 +297,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       const activeSheet = foundSheet || wb.SheetNames[0] || "";
       setSelectedSheet(activeSheet);
       
-      if (activeSheet) {
-        scanMissingUph(wb, activeSheet);
-      }
+
       
       toast.success(`Đã tải file MO "${file.name}" thành công!`);
     } catch (err) {
@@ -372,46 +349,12 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
     }
   };
 
-  const scanMissingUph = (wb: XLSX.WorkBook, sheetName: string) => {
-    try {
-      const sheet = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: null });
-      const uniqueItems = new Set<string>();
-      const dataRowStartIndex = dataRow - 1;
-      
-      for (let r = dataRowStartIndex; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const quantity = numValue(getCellVal(row, "J"), 0);
-        const mo = textVal(getCellVal(row, "I"));
-        const item = textVal(getCellVal(row, "C")); // Column C is Item
-        const desc = textVal(getCellVal(row, "B")); // Column B is Description
-        
-        if (!quantity && !mo && !item && !desc) continue;
-        
-        const uph = numValue(getCellVal(row, "T"), 0);
-        if (item && quantity > 0 && uph <= 0) {
-          uniqueItems.add(item);
-        }
-      }
-      setMissingUphItems(Array.from(uniqueItems).sort());
-    } catch (e) {
-      console.error("Error scanning missing UPH", e);
-    }
-  };
-
-  useEffect(() => {
-    if (originalWorkbook && selectedSheet) {
-      scanMissingUph(originalWorkbook, selectedSheet);
-    }
-  }, [selectedSheet, originalWorkbook, dataRow]);
-
   const removeFile = () => {
     setOriginalWorkbook(null);
     setFileName(null);
     setSheetNames([]);
     setSelectedSheet("");
     setResults([]);
-    setMissingUphItems([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -445,23 +388,25 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         const row = rows[r] || [];
         const quantity = numValue(getCellVal(row, "J"), 0);
         const mo = textVal(getCellVal(row, "I"));
-        const item = textVal(getCellVal(row, "C")); // Swap: Item is in column C
-        const desc = textVal(getCellVal(row, "B")); // Description is in column B
+        const item = textVal(getCellVal(row, "B")); // Column B is Item
+        const desc = textVal(getCellVal(row, "C")); // Column C is Description
 
         if (!quantity && !mo && !item && !desc) continue;
 
         let uph = numValue(getCellVal(row, "T"), 0);
-        if (uph <= 0 && manualUphMap[item]) {
-          uph = manualUphMap[item];
+        let uphWasZero = false;
+        if (uph <= 0) {
+          uph = defaultUph;
+          uphWasZero = true;
         }
 
         const xaStd = numValue(getCellVal(row, "R"), 0);
         const status = textVal(getCellVal(row, "H"));
         const pmc = textVal(getCellVal(row, "G"));
-        const solderPN = textVal(getCellVal(row, "BE"));
-        const inkPrinting = textVal(getCellVal(row, "BG"));
-        const letterRolling = textVal(getCellVal(row, "BH"));
-        const tapeReel = textVal(getCellVal(row, "BI"));
+        const solderPN = textVal(getCellVal(row, "BG")); // BG is Solder PN
+        const inkPrinting = textVal(getCellVal(row, "BI")); // BI is Ink Printing
+        const letterRolling = textVal(getCellVal(row, "BJ")); // BJ is Letter rolling
+        const tapeReel = textVal(getCellVal(row, "BK")); // BK is Tape and reel
 
         // Build features & priorities
         const normalizedDesc = normalize(desc);
@@ -534,17 +479,12 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           outputs: [0, 0, 0, 0, 0, 0, 0],
           times: [0, 0, 0, 0, 0, 0, 0],
           missing: quantity,
-          warnings: []
+          warnings: uphWasZero ? [`UPH item = 0, hệ thống tự động mặc định là ${defaultUph}`] : []
         });
       }
 
-      // Filter schedulable vs blocked
+      // Filter schedulable items
       const schedulable = parsedItems.filter((item) => item.quantity > 0 && item.uph > 0);
-      const blocked = parsedItems.filter((item) => item.quantity > 0 && item.uph <= 0);
-
-      blocked.forEach((item) => {
-        item.warnings.push("Thiếu UPH");
-      });
 
       // Group items by setupGroupKey (Item Code)
       const groupsMap = new Map<string, { key: string; items: ItemData[]; bestItem: ItemData; firstOrder: number }>();
@@ -596,13 +536,23 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         allocatedTimes[line] = [0, 0, 0, 0, 0, 0, 0];
       });
 
-      // Round-Robin allocation
-      let linePointer = 0;
-
+      // Dynamic load-balancing allocation: gán nhóm sản phẩm vào Line có tổng thời gian trống lớn nhất trong tuần
       planGroups.forEach((group) => {
-        // Choose Line
-        const assignedLine = activeLines[linePointer];
-        linePointer = (linePointer + 1) % activeLines.length;
+        let assignedLine = activeLines[0];
+        let maxAvailableHours = -999999;
+
+        activeLines.forEach((line) => {
+          const capacities = lineCapacities[line] || [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5];
+          let availableHoursSum = 0;
+          for (let d = 0; d < 7; d++) {
+            availableHoursSum += Math.max(capacities[d] - allocatedTimes[line][d], 0);
+          }
+
+          if (availableHoursSum > maxAvailableHours) {
+            maxAvailableHours = availableHoursSum;
+            assignedLine = line;
+          }
+        });
 
         // Mark line on items
         group.items.forEach((item) => {
@@ -640,8 +590,8 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
             return;
           }
 
-          // Max 2 consecutive days: preferredDay and preferredDay + 1
-          const daysToAllocate = [preferredDay, preferredDay + 1].filter(d => d < 7);
+          // Allocate from preferredDay to the end of the 7-day period (index 6)
+          const daysToAllocate = Array.from({ length: 7 - preferredDay }, (_, i) => preferredDay + i);
 
           for (const dayIndex of daysToAllocate) {
             if (remaining <= 0) break;
@@ -671,7 +621,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           }
 
           if (remaining > 0.001) {
-            item.warnings.push("Vượt công suất Line (chỉ chạy tối đa 2 ngày liên tục)");
+            item.warnings.push("Vượt công suất Line trong tuần (không thể xếp hết trong 7 ngày)");
           }
         });
       });
@@ -786,6 +736,146 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
     }
   };
 
+  const handleExportCalendarOnly = () => {
+    if (results.length === 0) {
+      toast.error("Chưa có dữ liệu lập lịch để xuất.");
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // --- SHEET 1: MA TRẬN PHÂN BỔ (MATRIX GRID) ---
+      const matrixRows: any[][] = [];
+      const matrixHeader = ["Line", "Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7", "Tổng giờ tuần"];
+      matrixRows.push(matrixHeader);
+
+      activeLines.forEach((line) => {
+        const lineRow: any[] = [line];
+        let totalHours = 0;
+
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const dayCapacity = lineCapacities[line]?.[dayIdx] ?? 10.5;
+          if (dayCapacity === 0) {
+            lineRow.push("OFF (Không hoạt động)");
+            continue;
+          }
+
+          const cellItems = results.filter(
+            (item) => item.assignedLine === line && item.outputs[dayIdx] > 0
+          );
+
+          if (cellItems.length === 0) {
+            lineRow.push("Trống");
+          } else {
+            const itemTexts = cellItems.map((item) => {
+              const warns = item.warnings.length > 0 ? " ⚠️" : "";
+              return `${item.item} (MO:${item.mo})\nQty: ${formatNumber(item.outputs[dayIdx])} | ${formatNumber(item.times[dayIdx])}h${warns}`;
+            });
+            lineRow.push(itemTexts.join("\n---\n"));
+          }
+
+          const dayHoursSum = cellItems.reduce((sum, item) => sum + item.times[dayIdx], 0);
+          totalHours += dayHoursSum;
+        }
+
+        lineRow.push(`${round(totalHours, 2)}h`);
+        matrixRows.push(lineRow);
+      });
+
+      const matrixSheet = XLSX.utils.aoa_to_sheet(matrixRows);
+      
+      matrixSheet["!cols"] = [
+        { wch: 10 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 35 },
+        { wch: 15 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, matrixSheet, "Ma Trận Phân Bổ Line");
+
+      // --- SHEET 2: DANH SÁCH CHI TIẾT (FLAT LIST) ---
+      const flatRows: any[][] = [];
+      const flatHeader = [
+        "Dòng Excel Gốc",
+        "Line Sản Xuất",
+        "Ngày Sản Xuất",
+        "Mã Hàng (Item)",
+        "Mô Tả Sản Phẩm",
+        "Số Lượng Phân Bổ (Qty)",
+        "Mã MO#",
+        "Số Giờ Hoạt Động (Hours)",
+        "Độ Ưu Tiên (Priority Score)",
+        "Cảnh Báo"
+      ];
+      flatRows.push(flatHeader);
+
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        activeLines.forEach((line) => {
+          const cellItems = results.filter(
+            (item) => item.assignedLine === line && item.outputs[dayIdx] > 0
+          );
+
+          cellItems.sort((a, b) => {
+            return b.priorityScore - a.priorityScore
+              || b.materialRank - a.materialRank
+              || b.pmcScore - a.pmcScore
+              || a.promiseDate - b.promiseDate
+              || a.shipDate - b.shipDate
+              || a.originalOrder - b.originalOrder;
+          });
+
+          cellItems.forEach((item) => {
+            flatRows.push([
+              item.rowNumber,
+              line,
+              `Day ${dayIdx + 1}`,
+              item.item,
+              item.desc,
+              item.outputs[dayIdx],
+              item.mo,
+              item.times[dayIdx],
+              item.priorityScore,
+              item.warnings.join("; ") || "OK"
+            ]);
+          });
+        });
+      }
+
+      const flatSheet = XLSX.utils.aoa_to_sheet(flatRows);
+      
+      flatSheet["!cols"] = [
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 22 },
+        { wch: 15 },
+        { wch: 22 },
+        { wch: 25 },
+        { wch: 35 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, flatSheet, "Danh Sách Chi Tiết");
+
+      const outName = fileName 
+        ? fileName.replace(/\.(xlsx|xls|xlsm)$/i, "") + " - lich-phan-bo-line.xlsx" 
+        : "lich-phan-bo-line.xlsx";
+        
+      XLSX.writeFile(wb, outName);
+      toast.success("Tải xuống file lịch phân bổ Line thành công!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi kết xuất file lịch phân bổ.");
+    }
+  };
+
   // Search and Paginated results
   const filteredResults = useMemo(() => {
     if (!searchTerm.trim()) return results;
@@ -869,7 +959,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           <Upload className="size-4 text-primary" />
           Tải tệp & Cấu hình nhanh
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start">
           
           {/* Column 1: File MO Upload */}
           <div className="space-y-1.5 text-left">
@@ -1007,7 +1097,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
           {/* Column 4: Advanced Parameters */}
           <div className="space-y-2 text-left">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-0.5">
                 <Label htmlFor="qtyEff" className="text-[10px] text-destructive dark:text-red-400 font-bold">H.suất UPH</Label>
                 <Input
@@ -1026,9 +1116,9 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                 <Input
                   id="lotStep"
                   type="number"
-                  min={1}
+                  min={0}
                   value={lotStep}
-                  onChange={(e) => setLotStep(parseInt(e.target.value) || 1)}
+                  onChange={(e) => setLotStep(Math.max(0, parseInt(e.target.value) || 0))}
                   className="h-7 text-xs font-mono px-1 text-center"
                 />
               </div>
@@ -1040,6 +1130,17 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                   min={2}
                   value={dataRow}
                   onChange={(e) => setDataRow(parseInt(e.target.value) || 3)}
+                  className="h-7 text-xs font-mono px-1 text-center"
+                />
+              </div>
+              <div className="space-y-0.5">
+                <Label htmlFor="defaultUph" className="text-[10px]">UPH mặc định</Label>
+                <Input
+                  id="defaultUph"
+                  type="number"
+                  min={1}
+                  value={defaultUph}
+                  onChange={(e) => setDefaultUph(Math.max(1, parseInt(e.target.value) || 300))}
                   className="h-7 text-xs font-mono px-1 text-center"
                 />
               </div>
@@ -1066,49 +1167,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
             </div>
           </div>
 
-          {/* Column 5: Missing UPH (if any) */}
-          {missingUphItems.length > 0 ? (
-            <div className="border border-amber-200 dark:border-amber-950/40 rounded-lg overflow-hidden bg-amber-50/20 dark:bg-amber-950/5 flex flex-col h-[76px] xl:col-span-1">
-              <div className="bg-amber-100/50 dark:bg-amber-950/20 px-2 py-1 text-[10px] font-semibold flex items-center justify-between text-amber-800 dark:text-amber-400 border-b border-amber-200 dark:border-amber-950/40 text-left shrink-0">
-                <span className="flex items-center gap-1"><AlertTriangle className="size-3" /> Thiếu UPH ({missingUphItems.length})</span>
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    placeholder="Chung..."
-                    value={bulkUph}
-                    onChange={(e) => setBulkUph(e.target.value)}
-                    className="h-5 text-[9px] w-12 font-mono py-0 px-1 bg-background"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleApplyBulkUph}
-                    className="h-5 px-1.5 py-0 text-[9px] font-semibold border-amber-600/30 text-amber-700 bg-background hover:bg-amber-100/50 shrink-0"
-                  >
-                    Áp dụng
-                  </Button>
-                </div>
-              </div>
-              <div className="p-1.5 overflow-y-auto space-y-1 flex-1">
-                {missingUphItems.map((item) => (
-                  <div key={item} className="flex items-center justify-between gap-2">
-                    <span className="text-[9px] font-mono text-muted-foreground truncate w-24 text-left" title={item}>
-                      {item}
-                    </span>
-                    <Input
-                      type="number"
-                      placeholder="Nhập"
-                      min={1}
-                      value={manualUphMap[item] || ""}
-                      onChange={(e) => handleUphChange(item, parseInt(e.target.value) || 0)}
-                      className="h-5 text-[9px] w-14 text-right font-mono py-0 px-1"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="hidden xl:block" />
-          )}
+
         </div>
       </div>
 
@@ -1405,7 +1464,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                         <div className="space-y-1">
                           <p className="font-semibold">Lưu ý về công suất Line:</p>
                           <p>
-                            Bảng trên thống kê số giờ hoạt động thực tế đã lập lịch trên mỗi Line so với Công suất khả dụng cấu hình của Line đó. Các Line bị đầy tải đỏ sẽ dừng nhận đơn hàng, và đơn hàng tiếp theo của nhóm sẽ được ưu tiên chạy nối tiếp sang ngày hôm sau của chính Line đó (tối đa 2 ngày chạy).
+                            Bảng trên thống kê số giờ hoạt động thực tế đã lập lịch trên mỗi Line so với Công suất khả dụng cấu hình của Line đó. Các Line bị đầy tải đỏ sẽ dừng nhận đơn hàng, và đơn hàng tiếp theo của nhóm sẽ được ưu tiên chạy nối tiếp sang các ngày tiếp theo của chính Line đó.
                           </p>
                         </div>
                       </div>
@@ -1425,6 +1484,19 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                 <div className="space-y-6">
                   {results.length > 0 ? (
                     <div className="space-y-4 text-left">
+                      <div className="flex justify-between items-center flex-wrap gap-2 pb-2">
+                        <div className="text-xs text-muted-foreground">
+                          Biểu đồ trực quan danh sách đơn hàng đã gán cho từng Line sản xuất trong 7 ngày làm việc.
+                        </div>
+                        <Button
+                          onClick={handleExportCalendarOnly}
+                          className="font-semibold border-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 text-emerald-600 dark:text-emerald-500 h-8 text-xs shrink-0"
+                          variant="outline"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          Xuất Lịch Phân Bổ (Lưới & Danh Sách)
+                        </Button>
+                      </div>
                       <div className="overflow-x-auto rounded-lg border border-muted">
                         <div className="min-w-[1200px] grid grid-cols-8 divide-x border-b bg-muted/40 font-semibold text-xs tracking-wider text-muted-foreground">
                           <div className="p-3 text-center font-bold">Line</div>
@@ -1501,7 +1573,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                                               </div>
                                               {hasWarns && (
                                                 <span className="text-[8px] font-semibold text-amber-700 dark:text-amber-400 block">
-                                                  ⚠️ Vượt quá 2 ngày
+                                                  ⚠️ Vượt công suất tuần
                                                 </span>
                                               )}
                                             </div>
@@ -1587,13 +1659,13 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
                     <RuleItemCard
                       num="4"
-                      title="Quy tắc 2 ngày liên tục"
+                      title="Quy tắc xếp lịch cả tuần"
                       desc={
                         <div>
-                          <p className="mb-2">Đơn hàng chạy trên Line được giới hạn thời gian chạy liên tục:</p>
+                          <p className="mb-2">Đơn hàng chạy trên Line được phép chạy tràn sang các ngày tiếp theo trong tuần:</p>
                           <ul className="list-disc pl-5 space-y-1 text-xs">
-                            <li>Một đơn hàng khi bắt đầu được lập lịch ở ngày $D$ (ngày đầu tiên line còn thời gian trống) thì chỉ được phép chạy tối đa ở ngày $D$ và ngày $D+1$ (2 ngày liên tục).</li>
-                            <li>Nếu số lượng lớn vượt quá công suất 2 ngày của Line gán, số lượng dư thừa sẽ bị bỏ trống và ghi nhận lỗi cảnh báo thiếu hụt công suất.</li>
+                            <li>Một đơn hàng khi bắt đầu được lập lịch ở ngày $D$ (ngày đầu tiên line còn thời gian trống) thì được phép chạy liên tục từ ngày $D$ cho đến hết tuần (Day 7).</li>
+                            <li>Nếu số lượng lớn vượt quá công suất cả tuần của Line gán, số lượng dư thừa sẽ bị bỏ trống và ghi nhận cảnh báo vượt công suất tuần.</li>
                           </ul>
                         </div>
                       }
