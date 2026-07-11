@@ -36,16 +36,12 @@ def analyze():
                 capacities.append(val)
             line_capacities[cell_0] = capacities
 
-    # Fill default active lines
-    active_lines = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L12", "L14", "L15", "L16"]
-    for line in active_lines:
-        if line not in line_capacities:
-            if line == "L4":
-                line_capacities[line] = [10.5, 10.5, 8.0, 10.5, 10.5, 10.5, 10.5]
-            elif line == "L5":
-                line_capacities[line] = [10.5, 10.5, 10.5, 10.5, 0.0, 10.5, 10.5]
-            else:
-                line_capacities[line] = default_capacity
+    # Parse active_lines dynamically from Excel
+    parsed_lines = list(line_capacities.keys())
+    import re
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+    active_lines = sorted(parsed_lines, key=natural_sort_key)
 
     # Load shipping list (Stest.xlsx)
     s_wb = openpyxl.load_workbook(s_path, data_only=True)

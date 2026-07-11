@@ -25,10 +25,12 @@ def dump_detailed():
                 capacities.append(val)
             line_capacities[cell_0] = capacities
 
-    active_lines = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L12", "L14", "L15", "L16"]
-    for line in active_lines:
-        if line not in line_capacities:
-            line_capacities[line] = [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5]
+    # Parse active_lines dynamically from Excel
+    parsed_lines = list(line_capacities.keys())
+    import re
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+    active_lines = sorted(parsed_lines, key=natural_sort_key)
 
     s_wb = openpyxl.load_workbook(s_path, data_only=True)
     sheet = s_wb.worksheets[0]

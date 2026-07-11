@@ -98,26 +98,25 @@ const outputHeaders: Record<string, string> = {
   CK: "Check tổng đơn"
 };
 
-const defaultLineCapacities: Record<string, number[]> = {
-  L1: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L2: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L3: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L4: [10.5, 10.5, 8.0, 10.5, 10.5, 10.5, 10.5],
-  L5: [10.5, 10.5, 10.5, 10.5, 0.0, 10.5, 10.5],
-  L6: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L7: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L8: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L9: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L10: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L11: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L12: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L13: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-  L14: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L15: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-  L16: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
+const sortLines = (lines: string[]): string[] => {
+  return [...lines].sort((a, b) => {
+    const aPrefix = a.replace(/\d+/g, "").toLowerCase();
+    const bPrefix = b.replace(/\d+/g, "").toLowerCase();
+    
+    if (aPrefix !== bPrefix) {
+      return aPrefix.localeCompare(bPrefix);
+    }
+    
+    const aNum = parseInt(a.replace(/\D/g, ""), 10);
+    const bNum = parseInt(b.replace(/\D/g, ""), 10);
+    
+    if (isNaN(aNum) || isNaN(bNum)) {
+      return a.localeCompare(b);
+    }
+    
+    return aNum - bNum;
+  });
 };
-
-const activeLines = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L12", "L14", "L15", "L16"];
 
 export function SchedulingClient({ username }: SchedulingClientProps) {
   // UI & File states
@@ -145,7 +144,8 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
   // Data states
   const [originalWorkbook, setOriginalWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [pendingWorkbook, setPendingWorkbook] = useState<XLSX.WorkBook | null>(null);
-  const [lineCapacities, setLineCapacities] = useState<Record<string, number[]>>(defaultLineCapacities);
+  const [lineCapacities, setLineCapacities] = useState<Record<string, number[]>>({});
+  const [activeLines, setActiveLines] = useState<string[]>([]);
   const [results, setResults] = useState<ItemData[]>([]);
   const [defaultUph, setDefaultUph] = useState<number>(300);
   
@@ -325,27 +325,31 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: null });
       
       const parsedCapacities: Record<string, number[]> = {};
+      const newActiveLines: string[] = [];
       
       for (let r = 0; r < rows.length; r++) {
         const row = rows[r];
         if (!row || row.length === 0) continue;
         const firstCell = String(row[0] || "").trim().toUpperCase();
-        if (/^L\d+$/.test(firstCell)) {
+        if (/^(L|LINE|M|MC|MACHINE|LINE\s)\d+$/.test(firstCell)) {
           const capacities: number[] = [];
           for (let c = 1; c <= 7; c++) {
             capacities.push(numValue(row[c], 0));
           }
           parsedCapacities[firstCell] = capacities;
+          if (!newActiveLines.includes(firstCell)) {
+            newActiveLines.push(firstCell);
+          }
         }
       }
       
       if (Object.keys(parsedCapacities).length > 0) {
-        const merged = { ...defaultLineCapacities, ...parsedCapacities };
-        setLineCapacities(merged);
+        setLineCapacities(parsedCapacities);
+        setActiveLines(sortLines(newActiveLines));
         setResourceFileName(file.name);
         toast.success(`Đã tải file công suất Line "${file.name}" thành công!`);
       } else {
-        toast.error("Không tìm thấy dữ liệu công suất của các Line (L1-L16) trong file.");
+        toast.error("Không tìm thấy dữ liệu công suất của các Line trong file.");
       }
     } catch (err) {
       console.error(err);
@@ -368,11 +372,12 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
   const removeResourceFile = () => {
     setResourceFileName(null);
-    setLineCapacities(defaultLineCapacities);
+    setLineCapacities({});
+    setActiveLines([]);
     if (resourceFileInputRef.current) {
       resourceFileInputRef.current.value = "";
     }
-    toast.info("Đã khôi phục bảng công suất Line mặc định.");
+    toast.info("Đã gỡ bỏ file công suất Line.");
   };
 
   // Drag & drop logic for Pending file
@@ -1897,7 +1902,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                       title="Cân bằng tải Line & Round-Robin"
                       desc={
                         <div>
-                          <p className="mb-2">Hệ thống phân bổ các nhóm Item tuần tự theo thứ tự vòng tròn L1, L2, L3... L16 (Bỏ qua L13):</p>
+                           <p className="mb-2">Hệ thống phân bổ các nhóm Item tuần tự theo thứ tự vòng tròn dựa trên danh sách Line khả dụng:</p>
                           <ul className="list-disc pl-5 space-y-1 text-xs">
                             <li>Mỗi nhóm Item chỉ được phép gán cố định cho **duy nhất 1 Line**, không được chạy song song trên nhiều Line.</li>
                             <li>Mục tiêu giúp dàn đều công việc của các Line sản xuất, không Line nào chạy quá nhiều hoặc chạy quá ít.</li>
