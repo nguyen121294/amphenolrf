@@ -66,6 +66,8 @@ interface ItemData {
   times: number[];       // Kết quả 7 ngày
   missing: number;
   warnings: string[];
+  isPending: boolean;
+  originalFile: "MO" | "Pending";
 }
 
 const dayDefs = [
@@ -122,12 +124,15 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [resourceFileName, setResourceFileName] = useState<string | null>(null);
+  const [pendingFileName, setPendingFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResourceDragging, setIsResourceDragging] = useState(false);
+  const [isPendingDragging, setIsPendingDragging] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resourceFileInputRef = useRef<HTMLInputElement>(null);
+  const pendingFileInputRef = useRef<HTMLInputElement>(null);
 
   // Configuration states
   const [headerRow, setHeaderRow] = useState<number>(2);
@@ -139,6 +144,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
   // Data states
   const [originalWorkbook, setOriginalWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [pendingWorkbook, setPendingWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [lineCapacities, setLineCapacities] = useState<Record<string, number[]>>(defaultLineCapacities);
   const [results, setResults] = useState<ItemData[]>([]);
   const [defaultUph, setDefaultUph] = useState<number>(300);
@@ -369,7 +375,164 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
     toast.info("Đã khôi phục bảng công suất Line mặc định.");
   };
 
+  // Drag & drop logic for Pending file
+  const handlePendingDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsPendingDragging(true);
+    } else if (e.type === "dragleave") {
+      setIsPendingDragging(false);
+    }
+  };
+
+  const handlePendingDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPendingDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processPendingFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePendingFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      await processPendingFile(e.target.files[0]);
+    }
+  };
+
+  const processPendingFile = async (file: File) => {
+    setLoading(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+      setPendingWorkbook(wb);
+      setPendingFileName(file.name);
+      toast.success(`Đã tải file Pending "${file.name}" thành công!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể đọc file Excel Pending. Vui lòng kiểm tra lại định dạng.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removePendingFile = () => {
+    setPendingWorkbook(null);
+    setPendingFileName(null);
+    if (pendingFileInputRef.current) {
+      pendingFileInputRef.current.value = "";
+    }
+    toast.info("Đã gỡ file Pending.");
+  };
+
   // Main processing logic (Round-Robin & Line Capacity based)
+  const parseSheetRows = (sheet: XLSX.WorkSheet, isPendingFile: boolean): ItemData[] => {
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: null });
+    const itemsList: ItemData[] = [];
+    const dataRowStartIndex = dataRow - 1;
+
+    for (let r = dataRowStartIndex; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const quantity = numValue(getCellVal(row, "J"), 0);
+      const mo = textVal(getCellVal(row, "I"));
+      const item = textVal(getCellVal(row, "B"));
+      const desc = textVal(getCellVal(row, "C"));
+
+      if (!quantity && !mo && !item && !desc) continue;
+
+      let uph = numValue(getCellVal(row, "T"), 0);
+      let uphWasZero = false;
+      if (uph <= 0) {
+        uph = defaultUph;
+        uphWasZero = true;
+      }
+
+      const xaStd = numValue(getCellVal(row, "R"), 0);
+      const status = textVal(getCellVal(row, "H"));
+      const pmc = textVal(getCellVal(row, "G"));
+      const solderPN = textVal(getCellVal(row, "BG"));
+      const inkPrinting = textVal(getCellVal(row, "BI"));
+      const letterRolling = textVal(getCellVal(row, "BJ"));
+      const tapeReel = textVal(getCellVal(row, "BK"));
+
+      const normalizedDesc = normalize(desc);
+      const normalizedStatus = normalize(status);
+      const normalizedPmc = normalize(pmc);
+      const normSolderPN = normalize(solderPN);
+      const normInkPrinting = normalize(inkPrinting);
+      const normLetterRolling = normalize(letterRolling);
+      const normTapeReel = normalize(tapeReel);
+
+      const pmcScore = normalizedPmc.includes("uu tien 1") ? 6 : 1;
+      const sapScore = normalizedDesc.includes("sap") || isNotNo(normLetterRolling) ? 5 : 1;
+      const kapScore = normalizedDesc.includes("kap") || isNotNo(normInkPrinting) ? 5 : 1;
+      
+      const isLathe = fixLatheScore
+        ? item.trim().toUpperCase().startsWith("34-")
+        : desc.trim().toUpperCase().startsWith("34-");
+      const latheScore = isLathe ? 5 : 1;
+
+      const reelScore = normalizedDesc.includes("smp") || normalizedDesc.includes("stpk") || isNotNo(normTapeReel) ? 4 : 1;
+      const solderScore = normSolderPN === "yes" ? 3 : 1;
+      const largeQtyScore = quantity > 5000 ? 2 : 1;
+
+      let materialRank = 1;
+      const hValNum = parseInt(status.trim(), 10);
+      if (!isNaN(hValNum)) {
+        if (hValNum === 3) materialRank = 4;
+        else if (hValNum === 2) materialRank = 3;
+        else if (hValNum === 1) materialRank = 2;
+        else if (hValNum === 0) materialRank = 1;
+      } else {
+        if (normalizedStatus.includes("ready material")) materialRank = 4;
+        else if (normalizedStatus.includes("co lieu")) materialRank = 3;
+      }
+
+      const priorityScore = pmcScore * sapScore * kapScore * latheScore * reelScore * solderScore * largeQtyScore;
+      const setupGroupKey = item || `row-${r}`;
+
+      itemsList.push({
+        rowIndex: r,
+        rowNumber: r + 1,
+        mo,
+        item,
+        desc,
+        setupGroupKey,
+        quantity,
+        uph,
+        xaStd,
+        status,
+        pmc,
+        solderPN,
+        inkPrinting,
+        letterRolling,
+        tapeReel,
+        promiseDate: dateSortValue(getCellVal(row, "AD")),
+        shipDate: dateSortValue(getCellVal(row, "Z")),
+        originalOrder: itemsList.length,
+        pmcScore,
+        sapScore,
+        kapScore,
+        latheScore,
+        reelScore,
+        solderScore,
+        largeQtyScore,
+        materialRank,
+        priorityScore,
+        dailyCapacity: 0,
+        outputs: [0, 0, 0, 0, 0, 0, 0],
+        times: [0, 0, 0, 0, 0, 0, 0],
+        missing: quantity,
+        warnings: uphWasZero ? [`UPH item = 0, hệ thống tự động mặc định là ${defaultUph}`] : [],
+        isPending: isPendingFile,
+        originalFile: isPendingFile ? "Pending" : "MO"
+      });
+    }
+    return itemsList;
+  };
+
   const calculatePlan = () => {
     if (!originalWorkbook || !selectedSheet) {
       toast.error("Vui lòng tải file Excel MO lên trước.");
@@ -378,110 +541,26 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
     setLoading(true);
     try {
-      const sheet = originalWorkbook.Sheets[selectedSheet];
-      const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true, defval: null });
-      
-      const parsedItems: ItemData[] = [];
-      const dataRowStartIndex = dataRow - 1;
+      const moSheet = originalWorkbook.Sheets[selectedSheet];
+      const moItems = parseSheetRows(moSheet, false);
 
-      for (let r = dataRowStartIndex; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const quantity = numValue(getCellVal(row, "J"), 0);
-        const mo = textVal(getCellVal(row, "I"));
-        const item = textVal(getCellVal(row, "B")); // Column B is Item
-        const desc = textVal(getCellVal(row, "C")); // Column C is Description
-
-        if (!quantity && !mo && !item && !desc) continue;
-
-        let uph = numValue(getCellVal(row, "T"), 0);
-        let uphWasZero = false;
-        if (uph <= 0) {
-          uph = defaultUph;
-          uphWasZero = true;
-        }
-
-        const xaStd = numValue(getCellVal(row, "R"), 0);
-        const status = textVal(getCellVal(row, "H"));
-        const pmc = textVal(getCellVal(row, "G"));
-        const solderPN = textVal(getCellVal(row, "BG")); // BG is Solder PN
-        const inkPrinting = textVal(getCellVal(row, "BI")); // BI is Ink Printing
-        const letterRolling = textVal(getCellVal(row, "BJ")); // BJ is Letter rolling
-        const tapeReel = textVal(getCellVal(row, "BK")); // BK is Tape and reel
-
-        // Build features & priorities
-        const normalizedDesc = normalize(desc);
-        const normalizedStatus = normalize(status);
-        const normalizedPmc = normalize(pmc);
-        const normSolderPN = normalize(solderPN);
-        const normInkPrinting = normalize(inkPrinting);
-        const normLetterRolling = normalize(letterRolling);
-        const normTapeReel = normalize(tapeReel);
-
-        const pmcScore = normalizedPmc.includes("uu tien 1") ? 6 : 1;
-        const sapScore = normalizedDesc.includes("sap") || isNotNo(normLetterRolling) ? 5 : 1;
-        const kapScore = normalizedDesc.includes("kap") || isNotNo(normInkPrinting) ? 5 : 1;
+      let pendingItems: ItemData[] = [];
+      if (pendingWorkbook) {
+        const foundPendingSheet = pendingWorkbook.SheetNames.find(
+          (name) => name.toLowerCase() === "shipping list"
+        ) || pendingWorkbook.SheetNames[0];
         
-        const isLathe = fixLatheScore
-          ? item.trim().toUpperCase().startsWith("34-")
-          : desc.trim().toUpperCase().startsWith("34-");
-        const latheScore = isLathe ? 5 : 1;
-
-        const reelScore = normalizedDesc.includes("smp") || normalizedDesc.includes("stpk") || isNotNo(normTapeReel) ? 4 : 1;
-        const solderScore = normSolderPN === "yes" ? 3 : 1;
-        const largeQtyScore = quantity > 5000 ? 2 : 1;
-
-        let materialRank = 1;
-        const hValNum = parseInt(status.trim(), 10);
-        if (!isNaN(hValNum)) {
-          if (hValNum === 3) materialRank = 4;
-          else if (hValNum === 2) materialRank = 3;
-          else if (hValNum === 1) materialRank = 2;
-          else if (hValNum === 0) materialRank = 1;
-        } else {
-          if (normalizedStatus.includes("ready material")) materialRank = 4;
-          else if (normalizedStatus.includes("co lieu")) materialRank = 3;
+        if (foundPendingSheet) {
+          const pendingSheet = pendingWorkbook.Sheets[foundPendingSheet];
+          pendingItems = parseSheetRows(pendingSheet, true);
         }
-
-        const priorityScore = pmcScore * sapScore * kapScore * latheScore * reelScore * solderScore * largeQtyScore;
-
-        // Group by Item code (Column C)
-        const setupGroupKey = item || `row-${r}`;
-
-        parsedItems.push({
-          rowIndex: r,
-          rowNumber: r + 1,
-          mo,
-          item,
-          desc,
-          setupGroupKey,
-          quantity,
-          uph,
-          xaStd,
-          status,
-          pmc,
-          solderPN,
-          inkPrinting,
-          letterRolling,
-          tapeReel,
-          promiseDate: dateSortValue(getCellVal(row, "AD")),
-          shipDate: dateSortValue(getCellVal(row, "Z")),
-          originalOrder: parsedItems.length,
-          pmcScore,
-          sapScore,
-          kapScore,
-          latheScore,
-          reelScore,
-          solderScore,
-          largeQtyScore,
-          materialRank,
-          priorityScore,
-          dailyCapacity: 0,
-          outputs: [0, 0, 0, 0, 0, 0, 0],
-          times: [0, 0, 0, 0, 0, 0, 0],
-          missing: quantity,
-          warnings: uphWasZero ? [`UPH item = 0, hệ thống tự động mặc định là ${defaultUph}`] : []
-        });
       }
+
+      // Merge items and re-index originalOrder to ensure global uniqueness
+      const parsedItems = [...pendingItems, ...moItems];
+      parsedItems.forEach((item, idx) => {
+        item.originalOrder = idx;
+      });
 
       // Filter schedulable items
       const schedulable = parsedItems.filter((item) => item.quantity > 0 && item.uph > 0);
@@ -503,6 +582,9 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         group.firstOrder = Math.min(group.firstOrder, item.originalOrder);
         
         const compareItems = (a: ItemData, b: ItemData) => {
+          if (a.isPending !== b.isPending) {
+            return a.isPending ? -1 : 1;
+          }
           return b.priorityScore - a.priorityScore
             || b.materialRank - a.materialRank
             || b.pmcScore - a.pmcScore
@@ -520,6 +602,9 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       // Sort groups by priority of bestItem
       planGroups.sort((a, b) => {
         const compareItems = (x: ItemData, y: ItemData) => {
+          if (x.isPending !== y.isPending) {
+            return x.isPending ? -1 : 1;
+          }
           return y.priorityScore - x.priorityScore
             || y.materialRank - x.materialRank
             || y.pmcScore - x.pmcScore
@@ -570,8 +655,11 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           }
         }
 
-        // Sort items inside group
+        // Sort items inside group for draft simulation
         group.items.sort((a, b) => {
+          if (a.isPending !== b.isPending) {
+            return a.isPending ? -1 : 1;
+          }
           return b.priorityScore - a.priorityScore
             || b.materialRank - a.materialRank
             || b.pmcScore - a.pmcScore
@@ -580,17 +668,13 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
             || a.originalOrder - b.originalOrder;
         });
 
-        // Allocate each item
+        // Allocate each item (Draft simulation to book hours)
         group.items.forEach((item) => {
           let remaining = item.quantity;
           const uphEff = item.uph * qtyEfficiency;
 
-          if (uphEff <= 0) {
-            item.warnings.push("UPH hiệu suất lỗi");
-            return;
-          }
+          if (uphEff <= 0) return;
 
-          // Allocate from preferredDay to the end of the 7-day period (index 6)
           const daysToAllocate = Array.from({ length: 7 - preferredDay }, (_, i) => preferredDay + i);
 
           for (const dayIndex of daysToAllocate) {
@@ -614,8 +698,88 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
             if (chunk > 0) {
               const timeUsed = chunk / uphEff;
-              item.outputs[dayIndex] = round(item.outputs[dayIndex] + chunk, 4);
               allocatedTimes[assignedLine][dayIndex] = round(allocatedTimes[assignedLine][dayIndex] + timeUsed, 4);
+              remaining = round(remaining - chunk, 4);
+            }
+          }
+        });
+      });
+
+      // RESET ALLOCATIONS FOR THE TWO-PASS ACTUAL ALLOCATION
+      activeLines.forEach((line) => {
+        allocatedTimes[line] = [0, 0, 0, 0, 0, 0, 0];
+      });
+
+      // Clear previous outputs/times of parsed items to perform fresh allocation
+      parsedItems.forEach((item) => {
+        item.outputs = [0, 0, 0, 0, 0, 0, 0];
+        item.times = [0, 0, 0, 0, 0, 0, 0];
+        item.missing = item.quantity;
+        item.warnings = item.warnings.filter(w => !w.includes("Vượt công suất") && !w.includes("Còn thiếu"));
+      });
+
+      // Group items by their assignedLine and perform two-pass allocation
+      activeLines.forEach((line) => {
+        const lineItems = parsedItems.filter((item) => item.assignedLine === line && item.quantity > 0 && item.uph > 0);
+
+        // Sort items: isPending first, then priorityScore, etc.
+        lineItems.sort((a, b) => {
+          if (a.isPending !== b.isPending) {
+            return a.isPending ? -1 : 1;
+          }
+          return b.priorityScore - a.priorityScore
+            || b.materialRank - a.materialRank
+            || b.pmcScore - a.pmcScore
+            || a.promiseDate - b.promiseDate
+            || a.shipDate - b.shipDate
+            || a.originalOrder - b.originalOrder;
+        });
+
+        const capacities = lineCapacities[line] || [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5];
+
+        lineItems.forEach((item) => {
+          let remaining = item.quantity;
+          const uphEff = item.uph * qtyEfficiency;
+
+          if (uphEff <= 0) {
+            item.warnings.push("UPH hiệu suất lỗi");
+            return;
+          }
+
+          // Dynamic preferredDay for each item on the Line
+          let preferredDay = 0;
+          for (let d = 0; d < 7; d++) {
+            if (capacities[d] - allocatedTimes[line][d] > 0.01) {
+              preferredDay = d;
+              break;
+            }
+          }
+
+          const daysToAllocate = Array.from({ length: 7 - preferredDay }, (_, i) => preferredDay + i);
+
+          for (const dayIndex of daysToAllocate) {
+            if (remaining <= 0) break;
+
+            const capacityHours = capacities[dayIndex];
+            const allocatedHours = allocatedTimes[line][dayIndex];
+            const availableHours = Math.max(capacityHours - allocatedHours, 0);
+
+            if (availableHours <= 0.001) continue;
+
+            const maxQtyByHours = availableHours * uphEff;
+            let chunk = Math.min(remaining, maxQtyByHours);
+
+            if (lotStep > 1 && remaining > lotStep && chunk >= lotStep) {
+              const rounded = Math.max(lotStep, Math.round(chunk / lotStep) * lotStep);
+              chunk = round(Math.min(rounded, remaining, maxQtyByHours), 4);
+            } else {
+              chunk = round(Math.min(chunk, remaining), 4);
+            }
+
+            if (chunk > 0) {
+              const timeUsed = chunk / uphEff;
+              item.outputs[dayIndex] = round(item.outputs[dayIndex] + chunk, 4);
+              allocatedTimes[line][dayIndex] = round(allocatedTimes[line][dayIndex] + timeUsed, 4);
               remaining = round(remaining - chunk, 4);
             }
           }
@@ -638,7 +802,14 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         }
       });
 
-      const sortedResults = parsedItems.sort((a, b) => a.rowNumber - b.rowNumber);
+      // Sort results: pending first, then by row number
+      const sortedResults = parsedItems.sort((a, b) => {
+        if (a.isPending !== b.isPending) {
+          return a.isPending ? -1 : 1;
+        }
+        return a.rowNumber - b.rowNumber;
+      });
+
       setResults(sortedResults);
       setCurrentPage(1);
       toast.success("Tính toán kế hoạch phân bổ theo Line thành công!");
@@ -675,8 +846,9 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         setCell(sheet, 0, colIndex("CK"), round(results.reduce((sum, item) => sum + Math.max(item.missing, 0), 0), 4));
       }
 
-      // Write results rows
-      results.forEach((item) => {
+      // Write results rows -> Only write back to MO sheet for MO items!
+      const moResults = results.filter((item) => !item.isPending);
+      moResults.forEach((item) => {
         dayDefs.forEach((day, index) => {
           setCell(sheet, item.rowIndex, colIndex(day.qtyCol), item.outputs[index] || null);
           setCell(sheet, item.rowIndex, colIndex(day.timeCol), item.times[index] || null);
@@ -685,7 +857,8 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       });
 
       // Extend range of active sheet
-      extendRange(sheet, "CK", Math.max(...results.map((item) => item.rowNumber), headerRow));
+      const maxMoRow = moResults.length > 0 ? Math.max(...moResults.map((item) => item.rowNumber)) : headerRow;
+      extendRange(sheet, "CK", Math.max(maxMoRow, headerRow));
 
       // Build Report JS sheet
       const reportRows = [
@@ -705,11 +878,12 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       });
 
       reportRows.push([]);
-      reportRows.push(["Dòng", "MO#", "Item", "Quantity", "Thiếu", "Line gán", "Cảnh báo"]);
+      reportRows.push(["Nguồn", "Dòng", "MO#", "Item", "Quantity", "Thiếu", "Line gán", "Cảnh báo"]);
       results
         .filter((item) => item.warnings.length || item.missing > 0)
         .forEach((item) => {
           reportRows.push([
+            item.originalFile,
             item.rowNumber,
             item.mo,
             item.item,
@@ -770,7 +944,8 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           } else {
             const itemTexts = cellItems.map((item) => {
               const warns = item.warnings.length > 0 ? " ⚠️" : "";
-              return `${item.item} (MO:${item.mo})\nQty: ${formatNumber(item.outputs[dayIdx])} | ${formatNumber(item.times[dayIdx])}h${warns}`;
+              const pendingPrefix = item.isPending ? "[PENDING] " : "";
+              return `${pendingPrefix}${item.item} (MO:${item.mo})\nQty: ${formatNumber(item.outputs[dayIdx])} | ${formatNumber(item.times[dayIdx])}h${warns}`;
             });
             lineRow.push(itemTexts.join("\n---\n"));
           }
@@ -802,6 +977,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       // --- SHEET 2: DANH SÁCH CHI TIẾT (FLAT LIST) ---
       const flatRows: any[][] = [];
       const flatHeader = [
+        "Nguồn File",
         "Dòng Excel Gốc",
         "Line Sản Xuất",
         "Ngày Sản Xuất",
@@ -822,6 +998,9 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           );
 
           cellItems.sort((a, b) => {
+            if (a.isPending !== b.isPending) {
+              return a.isPending ? -1 : 1;
+            }
             return b.priorityScore - a.priorityScore
               || b.materialRank - a.materialRank
               || b.pmcScore - a.pmcScore
@@ -832,6 +1011,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
 
           cellItems.forEach((item) => {
             flatRows.push([
+              item.originalFile,
               item.rowNumber,
               line,
               `Day ${dayIdx + 1}`,
@@ -850,6 +1030,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
       const flatSheet = XLSX.utils.aoa_to_sheet(flatRows);
       
       flatSheet["!cols"] = [
+        { wch: 15 },
         { wch: 15 },
         { wch: 15 },
         { wch: 15 },
@@ -959,7 +1140,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
           <Upload className="size-4 text-primary" />
           Tải tệp & Cấu hình nhanh
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 items-start">
           
           {/* Column 1: File MO Upload */}
           <div className="space-y-1.5 text-left">
@@ -1006,9 +1187,56 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
             )}
           </div>
 
-          {/* Column 2: File Resource Upload */}
+          {/* Column 2: File Pending Upload */}
           <div className="space-y-1.5 text-left">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">2. File Công Suất Line</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              2. File Excel Pending (Ưu tiên)
+            </Label>
+            {!pendingFileName ? (
+              <div
+                onDragEnter={handlePendingDrag}
+                onDragOver={handlePendingDrag}
+                onDragLeave={handlePendingDrag}
+                onDrop={handlePendingDrop}
+                onClick={() => pendingFileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors duration-200 ${
+                  isPendingDragging
+                    ? "border-blue-500 bg-blue-500/5"
+                    : "border-muted-foreground/20 hover:border-blue-500/50 hover:bg-muted/50"
+                }`}
+              >
+                <input
+                  ref={pendingFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.xlsm"
+                  className="hidden"
+                  onChange={handlePendingFileChange}
+                />
+                <FileSpreadsheet className="mx-auto size-6 text-muted-foreground mb-1" />
+                <p className="text-[10px] font-medium text-muted-foreground">Kéo thả file Pending hoặc click</p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-2 border rounded-lg bg-blue-500/5 border-blue-200 dark:border-blue-900/50 dark:bg-blue-950/10 h-[72px]">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileSpreadsheet className="size-6 text-blue-500 shrink-0" />
+                  <div className="truncate text-left">
+                    <p className="text-xs font-medium truncate text-blue-600 dark:text-blue-400">{pendingFileName}</p>
+                    <p className="text-[9px] text-blue-500 font-semibold">Sẵn sàng ưu tiên</p>
+                  </div>
+                </div>
+                <button
+                  onClick={removePendingFile}
+                  className="p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-colors"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Column 3: File Resource Upload */}
+          <div className="space-y-1.5 text-left">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">3. File Công Suất Line</Label>
             {!resourceFileName ? (
               <div
                 onDragEnter={handleResourceDrag}
@@ -1254,6 +1482,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                           <thead className="bg-muted/70 text-muted-foreground uppercase text-[10px] tracking-wider font-semibold border-b">
                             <tr>
                               <th className="p-3 text-center w-12">Dòng</th>
+                              <th className="p-3 text-center w-20">Nguồn</th>
                               <th className="p-3">MO#</th>
                               <th className="p-3">Mã hàng (Item)</th>
                               <th className="p-3">Mô tả</th>
@@ -1273,7 +1502,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                           <tbody className="divide-y">
                             {paginatedResults.length === 0 ? (
                               <tr>
-                                <td colSpan={17} className="text-center py-8 text-muted-foreground text-xs">
+                                <td colSpan={18} className="text-center py-8 text-muted-foreground text-xs">
                                   Không tìm thấy dòng phù hợp với từ khóa tìm kiếm.
                                 </td>
                               </tr>
@@ -1282,8 +1511,19 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                                 const hasWarns = item.warnings.length > 0;
                                 const isMissing = item.missing > 0;
                                 return (
-                                  <tr key={item.rowIndex} className="hover:bg-muted/20 transition-colors">
+                                  <tr key={`${item.isPending ? "p-" : "m-"}${item.rowIndex}`} className={`hover:bg-muted/20 transition-colors ${item.isPending ? "bg-blue-500/5 hover:bg-blue-500/10" : ""}`}>
                                     <td className="p-3 text-center text-xs text-muted-foreground font-mono">{item.rowNumber}</td>
+                                    <td className="p-3 text-center">
+                                      {item.isPending ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                                          ⚡ Pending
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                                          📦 MO
+                                        </span>
+                                      )}
+                                    </td>
                                     <td className="p-3 font-semibold font-mono text-xs">{item.mo}</td>
                                     <td className="p-3 font-semibold font-mono text-xs text-primary">{item.item}</td>
                                     <td className="p-3 text-xs text-muted-foreground max-w-[150px] truncate" title={item.desc}>{item.desc}</td>
@@ -1550,27 +1790,36 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
                                       ) : (
                                         cellItems.map((item) => {
                                           const hasWarns = item.warnings.length > 0;
+                                          const isPending = item.isPending;
+                                          let cardStyle = "bg-emerald-50/10 border-emerald-200 dark:border-emerald-950/30";
+                                          if (hasWarns) {
+                                            cardStyle = "bg-amber-50/50 border-amber-200 dark:bg-amber-950/10 dark:border-amber-900";
+                                          } else if (isPending) {
+                                            cardStyle = "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900 text-blue-950 dark:text-blue-200";
+                                          }
+
                                           return (
                                             <div
-                                              key={item.rowIndex}
-                                              className={`p-2 rounded-lg border text-left text-xs transition-shadow hover:shadow-xs space-y-1 ${
-                                                hasWarns
-                                                  ? "bg-amber-50/50 border-amber-200 dark:bg-amber-950/10 dark:border-amber-900"
-                                                  : "bg-emerald-50/10 border-emerald-200 dark:border-emerald-950/30"
-                                              }`}
+                                              key={`${item.isPending ? "p-" : "m-"}${item.rowIndex}`}
+                                              className={`p-2 rounded-lg border text-left text-xs transition-shadow hover:shadow-xs space-y-1 ${cardStyle}`}
                                             >
                                               <div className="flex items-center justify-between gap-1">
                                                 <span className="font-bold text-primary truncate block max-w-[80px]" title={item.item}>
                                                   {item.item}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-muted-foreground shrink-0 bg-muted px-1 rounded">
-                                                  MO: {item.mo}
+                                                  {item.isPending ? "⚡" : "MO:"} {item.mo}
                                                 </span>
                                               </div>
                                               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                                                 <span>Qty: <strong className="text-foreground">{formatNumber(item.outputs[dayIdx])}</strong></span>
                                                 <span>Time: <strong className="text-foreground">{formatNumber(item.times[dayIdx])}h</strong></span>
                                               </div>
+                                              {isPending && (
+                                                <span className="text-[8px] font-semibold text-blue-600 dark:text-blue-400 block">
+                                                  ⚡ Pending ưu tiên
+                                                </span>
+                                              )}
                                               {hasWarns && (
                                                 <span className="text-[8px] font-semibold text-amber-700 dark:text-amber-400 block">
                                                   ⚠️ Vượt công suất tuần
