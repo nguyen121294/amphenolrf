@@ -84,6 +84,7 @@ export const dailyProductionSummaries = pgTable("daily_production_summaries", {
   id: serial("id").primaryKey(),
   date: timestamp("date").notNull().unique(),
   supervisor: varchar("supervisor", { length: 100 }).notNull(),
+  totalHeadcount: integer("total_headcount").notNull().default(0),
   absentees: integer("absentees").notNull().default(0),
   overtime: doublePrecision("overtime").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),

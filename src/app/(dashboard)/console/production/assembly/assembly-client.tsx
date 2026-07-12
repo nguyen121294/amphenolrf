@@ -56,6 +56,14 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
   const [fqcTime, setFqcTime] = useState("");
   const [otherLossTime, setOtherLossTime] = useState("");
 
+  const handleMoChange = (val: string) => {
+    let cleaned = val.toUpperCase();
+    if (cleaned.startsWith("M0")) {
+      cleaned = cleaned.substring(2);
+    }
+    setMo(cleaned);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -117,7 +125,7 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
       const res = await saveAssemblyReportAction({
         date: new Date(date).toISOString(),
         lineId: parseInt(lineId, 10),
-        mo: mo.trim(),
+        mo: "M0" + mo.trim(),
         itemId: parseInt(itemId, 10),
         qtyMo: parsedQtyMo,
         actualQty: parsedActualQty,
@@ -257,15 +265,20 @@ export function AssemblyClient({ lines, items, username }: AssemblyClientProps) 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                   <FileText className="h-3.5 w-3.5" />
-                  Mã MO (M0) <span className="text-red-500">*</span>
+                  Mã MO <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  placeholder="Nhập mã MO..."
-                  value={mo}
-                  onChange={(e) => setMo(e.target.value)}
-                  className="h-10 text-sm"
-                  required
-                />
+                <div className="flex rounded-md shadow-sm">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 text-sm font-semibold select-none">
+                    M0
+                  </span>
+                  <Input
+                    placeholder="Nhập mã MO..."
+                    value={mo}
+                    onChange={(e) => handleMoChange(e.target.value)}
+                    className="h-10 text-sm rounded-l-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0"
+                    required
+                  />
+                </div>
               </div>
             </div>
           </div>

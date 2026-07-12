@@ -22,6 +22,7 @@ export interface ActionResponse<T = unknown> {
 
 export interface DailySummaryData {
   supervisor: string;
+  totalHeadcount: number;
   absentees: number;
   overtime: number;
 }
@@ -79,6 +80,7 @@ export async function getDailySummaryAction(dateStr: string): Promise<ActionResp
     const [summary] = await db
       .select({
         supervisor: dailyProductionSummaries.supervisor,
+        totalHeadcount: dailyProductionSummaries.totalHeadcount,
         absentees: dailyProductionSummaries.absentees,
         overtime: dailyProductionSummaries.overtime,
       })
@@ -105,6 +107,7 @@ export async function getDailySummaryAction(dateStr: string): Promise<ActionResp
 export async function saveDailySummaryAction(data: {
   date: string;
   supervisor: string;
+  totalHeadcount: number;
   absentees: number;
   overtime: number;
 }): Promise<ActionResponse<void>> {
@@ -122,12 +125,17 @@ export async function saveDailySummaryAction(data: {
       return { success: false, error: "Bạn không có quyền cập nhật thông tin giám sát." };
     }
 
-    const { date, supervisor, absentees, overtime } = data;
+    const { date, supervisor, totalHeadcount, absentees, overtime } = data;
     if (!supervisor.trim()) {
       return { success: false, error: "Vui lòng nhập tên Supervisor." };
     }
+    if (totalHeadcount < 0) return { success: false, error: "Tổng số người không được âm." };
     if (absentees < 0) return { success: false, error: "Số người vắng không được âm." };
     if (overtime < 0) return { success: false, error: "Số giờ tăng ca không được âm." };
+
+    if (absentees > totalHeadcount) {
+      return { success: false, error: "Số người nghỉ không được lớn hơn tổng số người." };
+    }
 
     const targetDate = new Date(date);
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
@@ -150,6 +158,7 @@ export async function saveDailySummaryAction(data: {
         .update(dailyProductionSummaries)
         .set({
           supervisor: supervisor.trim(),
+          totalHeadcount,
           absentees,
           overtime,
           updatedAt: new Date(),
@@ -159,6 +168,7 @@ export async function saveDailySummaryAction(data: {
       await db.insert(dailyProductionSummaries).values({
         date: new Date(date),
         supervisor: supervisor.trim(),
+        totalHeadcount,
         absentees,
         overtime,
       });
@@ -294,6 +304,7 @@ export async function getDailyProductionReportAction(dateStr: string): Promise<A
 
     const summary: DailySummaryData = {
       supervisor: summaryRec?.supervisor || "",
+      totalHeadcount: summaryRec?.totalHeadcount || 0,
       absentees: summaryRec?.absentees || 0,
       overtime: summaryRec?.overtime || 0,
     };
@@ -318,7 +329,8 @@ export async function getDailyProductionReportAction(dateStr: string): Promise<A
         a.otherLossTime;
     }
 
-    const totalHeadcount = Object.values(lineHeadcounts).reduce((sum, val) => sum + val, 0);
+    const calculatedHeadcount = Object.values(lineHeadcounts).reduce((sum, val) => sum + val, 0);
+    const totalHeadcount = summary.totalHeadcount > 0 ? summary.totalHeadcount : calculatedHeadcount;
     const attendance = Math.max(0, totalHeadcount - summary.absentees);
     const totalNormalHours = attendance * 8;
     const availableTime = totalNormalHours + summary.overtime;

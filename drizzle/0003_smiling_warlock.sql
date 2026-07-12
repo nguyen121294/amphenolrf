@@ -1,0 +1,1 @@
+ALTER TABLE "daily_production_summaries" ADD COLUMN "total_headcount" integer DEFAULT 0 NOT NULL;

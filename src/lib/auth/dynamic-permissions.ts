@@ -95,6 +95,12 @@ function getStaticDefaultPermission(
 
     // Users are allowed to view production pages and create (submit) reports
     if (pagePath.startsWith("/console/production")) {
+      if (
+        pagePath === "/console/production/shipping-plan" ||
+        pagePath === "/console/production/scheduling"
+      ) {
+        return false;
+      }
       if (action === "view" || action === "create") {
         return true;
       }

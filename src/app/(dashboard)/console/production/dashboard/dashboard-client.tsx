@@ -61,6 +61,7 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
   // Dialog edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editSupervisor, setEditSupervisor] = useState("");
+  const [editTotalHeadcount, setEditTotalHeadcount] = useState("");
   const [editAbsentees, setEditAbsentees] = useState("");
   const [editOvertime, setEditOvertime] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
@@ -74,6 +75,9 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
         setReportData(res.data);
         // Pre-fill edit fields
         setEditSupervisor(res.data.summary.supervisor);
+        const summaryHeadcount = res.data.summary.totalHeadcount;
+        const calculatedHeadcount = res.data.stats.totalHeadcount;
+        setEditTotalHeadcount(String(summaryHeadcount > 0 ? summaryHeadcount : calculatedHeadcount));
         setEditAbsentees(String(res.data.summary.absentees));
         setEditOvertime(String(res.data.summary.overtime));
       } else {
@@ -106,9 +110,13 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
       return toast.error("Vui lòng nhập tên Supervisor.");
     }
 
+    const totalHeadcountVal = parseInt(editTotalHeadcount, 10);
     const absenteesVal = parseInt(editAbsentees, 10);
     const overtimeVal = parseFloat(editOvertime);
 
+    if (isNaN(totalHeadcountVal) || totalHeadcountVal < 0) {
+      return toast.error("Tổng số người không được nhỏ hơn 0.");
+    }
     if (isNaN(absenteesVal) || absenteesVal < 0) {
       return toast.error("Số người vắng không được nhỏ hơn 0.");
     }
@@ -116,11 +124,16 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
       return toast.error("Số giờ tăng ca không được nhỏ hơn 0.");
     }
 
+    if (absenteesVal > totalHeadcountVal) {
+      return toast.error("Số người nghỉ không được lớn hơn tổng số người.");
+    }
+
     try {
       setSaveLoading(true);
       const res = await saveDailySummaryAction({
         date,
         supervisor: editSupervisor.trim(),
+        totalHeadcount: totalHeadcountVal,
         absentees: absenteesVal,
         overtime: overtimeVal,
       });
@@ -571,7 +584,26 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="editTotalHeadcount" className="text-xs font-semibold">
+                  Tổng số người (Headcount)
+                </Label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                  <Input
+                    id="editTotalHeadcount"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={editTotalHeadcount}
+                    onChange={(e) => setEditTotalHeadcount(e.target.value)}
+                    className="pl-9 h-10 text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="editAbsentees" className="text-xs font-semibold">
                   Số người nghỉ (Absentees)
@@ -592,7 +624,7 @@ export function DashboardClient({ canEdit }: DashboardClientProps) {
 
               <div className="space-y-1.5">
                 <Label htmlFor="editOvertime" className="text-xs font-semibold">
-                  Giờ tăng ca (Total Overtime)
+                  Giờ tăng ca (Overtime)
                 </Label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />

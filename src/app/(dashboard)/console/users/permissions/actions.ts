@@ -30,6 +30,8 @@ const CONFIGURABLE_PAGES = [
   { path: "/console/production/assembly", name: "Báo cáo Assembly" },
   { path: "/console/production/packing", name: "Báo cáo Packing" },
   { path: "/console/production/records", name: "Lịch sử báo cáo" },
+  { path: "/console/production/shipping-plan", name: "Kế hoạch giao hàng (Shipping Plan)" },
+  { path: "/console/production/scheduling", name: "Kế hoạch sản xuất (Scheduling)" },
   { path: "/console/masterdata/item-setting", name: "Thiết lập Item (Master Data)" },
   { path: "/console/masterdata/line-setting", name: "Thiết lập Line (Master Data)" },
 ];
@@ -51,6 +53,19 @@ function getStaticDefaultPermission(role: string, pagePath: string) {
       };
     }
     if (pagePath.startsWith("/console/production")) {
+      if (
+        pagePath === "/console/production/shipping-plan" ||
+        pagePath === "/console/production/scheduling"
+      ) {
+        return {
+          canView: false,
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+          canImport: false,
+          canExport: false,
+        };
+      }
       return {
         canView: true,
         canCreate: true, // Standard user can write reports

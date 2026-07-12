@@ -163,12 +163,18 @@ export function PermissionsClient({ users }: PermissionsClientProps) {
   // Human-readable page names
   const getPageName = (path: string) => {
     switch (path) {
+      case "/console/production/dashboard":
+        return "Dashboard Production";
       case "/console/production/assembly":
         return "Báo cáo Assembly";
       case "/console/production/packing":
         return "Báo cáo Packing";
       case "/console/production/records":
         return "Lịch sử báo cáo";
+      case "/console/production/shipping-plan":
+        return "Kế hoạch giao hàng (Shipping Plan)";
+      case "/console/production/scheduling":
+        return "Kế hoạch sản xuất (Scheduling)";
       case "/console/masterdata/item-setting":
         return "Thiết lập Item (Master Data)";
       case "/console/masterdata/line-setting":
