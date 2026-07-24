@@ -495,7 +495,7 @@ export function SchedulingClient({ username }: SchedulingClientProps) {
         else if (normalizedStatus.includes("co lieu")) materialRank = 3;
       }
 
-      const priorityScore = pmcScore * sapScore * kapScore * latheScore * reelScore * solderScore * largeQtyScore;
+      const priorityScore = pmcScore * sapScore * kapScore * latheScore * reelScore * solderScore * largeQtyScore * materialRank;
       const setupGroupKey = item || `row-${r}`;
 
       itemsList.push({

@@ -1,0 +1,51 @@
+HƯỚNG DẪN CÁCH TÍNH ĐIỂM ƯU TIÊN SẮP XẾP SẢN XUẤT (SCHEDULING)
+
+Dưới đây là chi tiết các thành phần tính điểm, cột lấy dữ liệu và số điểm tương ứng:
+
+1. ĐIỂM PMC (pmcScore)
+- Cột đọc: G (PMC)
+- Ký hiệu / Điều kiện: Nếu cột G chứa chữ "uu tien 1"
+- Điểm: Có = 6 điểm | Không = 1 điểm
+
+2. ĐIỂM DẬP SAP (sapScore)
+- Cột đọc: C (Description) hoặc BJ (Letter Rolling)
+- Ký hiệu / Điều kiện: Nếu Cột C chứa chữ "sap" HOẶC Cột BJ có nhập chữ khác "no"
+- Điểm: Có = 5 điểm | Không = 1 điểm
+
+3. ĐIỂM DẬP KAP (kapScore)
+- Cột đọc: C (Description) hoặc BI (Ink Printing)
+- Ký hiệu / Điều kiện: Nếu Cột C chứa chữ "kap" HOẶC Cột BI có nhập chữ khác "no"
+- Điểm: Có = 5 điểm | Không = 1 điểm
+
+4. ĐIỂM HÀNG TIỆN (latheScore)
+- Cột đọc: B (Item)
+- Ký hiệu / Điều kiện: Nếu mã hàng (Item) bắt đầu bằng "34-"
+- Điểm: Có = 5 điểm | Không = 1 điểm
+
+5. ĐIỂM HÀNG CUỘN (reelScore)
+- Cột đọc: C (Description) hoặc BK (Tape Reel)
+- Ký hiệu / Điều kiện: Nếu Cột C chứa chữ "smp" hoặc "stpk" HOẶC Cột BK có nhập chữ khác "no"
+- Điểm: Có = 4 điểm | Không = 1 điểm
+
+6. ĐIỂM HÀNG HÀN (solderScore)
+- Cột đọc: BG (Solder PN)
+- Ký hiệu / Điều kiện: Nếu Cột BG nhập chữ "yes"
+- Điểm: Có = 3 điểm | Không = 1 điểm
+
+7. ĐIỂM SỐ LƯỢNG LỚN (largeQtyScore)
+- Cột đọc: J (Quantity)
+- Ký hiệu / Điều kiện: Nếu Cột J (Số lượng) > 5000
+- Điểm: Có = 2 điểm | Không = 1 điểm
+
+----------------------------------------------------
+🔥 TỔNG ĐIỂM ƯU TIÊN (priorityScore) = (1) * (2) * (3) * (4) * (5) * (6) * (7) * (8)
+(Tất cả các điểm trên NHÂN lại với nhau)
+----------------------------------------------------
+
+8. ĐIỂM VẬT TƯ (materialRank) - ĐÃ ĐƯỢC NHÂN TRỰC TIẾP VÀO ĐIỂM TỔNG
+- Cột đọc: H (Status)
+- Ký hiệu và Số điểm (Rank):
+  + Nếu nhập số 3 hoặc chữ "ready material"  => Rank 4 (Cao nhất)
+  + Nếu nhập số 2 hoặc chữ "co lieu"         => Rank 3
+  + Nếu nhập số 1                            => Rank 2
+  + Nếu nhập số 0 (hoặc bỏ trống)            => Rank 1
